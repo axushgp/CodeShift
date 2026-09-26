@@ -14,6 +14,9 @@ import { StatusPanel } from './components/StatusPanel'
 import { ResultsArea } from './components/ResultsArea'
 import { RepoProfilePanel } from './components/RepoProfilePanel'
 import { BaselinePanel } from './components/BaselinePanel'
+import { FindingsPanel } from './components/FindingsPanel'
+import { VerificationPanel } from './components/VerificationPanel'
+import { AgentPackPanel } from './components/AgentPackPanel'
 import {
   ApiClientError,
   getRehearsalStatus,
@@ -21,11 +24,15 @@ import {
   startRehearsalFromZip,
 } from './api/client'
 import type {
+  AgentTaskSpec,
   BaselineResult,
+  MigrationPlan,
   Rehearsal,
   RehearsalStage,
   RehearsalStatus,
   RepositoryProfile,
+  TwinResult,
+  VerificationRun,
 } from './types'
 import './App.css'
 
@@ -36,6 +43,11 @@ interface AppState {
   rehearsal: Rehearsal | null
   profile: RepositoryProfile | null
   baseline: BaselineResult | null
+  migrationPlan: MigrationPlan | null
+  twinResult: TwinResult | null
+  verificationRun: VerificationRun | null
+  agentTaskSpec: AgentTaskSpec | null
+  hasAgentPack: boolean
   errorMessage: string | null
   isLoading: boolean
 }
@@ -44,6 +56,11 @@ const INITIAL_STATE: AppState = {
   rehearsal: null,
   profile: null,
   baseline: null,
+  migrationPlan: null,
+  twinResult: null,
+  verificationRun: null,
+  agentTaskSpec: null,
+  hasAgentPack: false,
   errorMessage: null,
   isLoading: false,
 }
@@ -72,6 +89,11 @@ function App() {
           rehearsal: data.rehearsal,
           profile: data.repo_profile ?? prev.profile,
           baseline: data.baseline ?? prev.baseline,
+          migrationPlan: data.migration_plan ?? prev.migrationPlan,
+          twinResult: data.twin_result ?? prev.twinResult,
+          verificationRun: data.verification_run ?? prev.verificationRun,
+          agentTaskSpec: data.agent_task_spec ?? prev.agentTaskSpec,
+          hasAgentPack: data.has_agent_pack ?? prev.hasAgentPack,
           isLoading: !TERMINAL_STAGES.includes(data.rehearsal.stage),
           errorMessage: data.rehearsal.error_message ?? null,
         }))
@@ -114,6 +136,11 @@ function App() {
         rehearsal: data.rehearsal,
         profile: data.repo_profile ?? null,
         baseline: data.baseline ?? null,
+        migrationPlan: data.migration_plan ?? null,
+        twinResult: data.twin_result ?? null,
+        verificationRun: data.verification_run ?? null,
+        agentTaskSpec: data.agent_task_spec ?? null,
+        hasAgentPack: data.has_agent_pack ?? false,
         errorMessage: null,
         isLoading: true,
       })
@@ -166,6 +193,31 @@ function App() {
         {state.baseline && (
           <section className="cs-section" aria-label="Baseline results">
             <BaselinePanel baseline={state.baseline} />
+          </section>
+        )}
+
+        {state.migrationPlan && state.migrationPlan.findings && state.migrationPlan.findings.length > 0 && (
+          <section className="cs-section" aria-label="Migration findings">
+            <FindingsPanel findings={state.migrationPlan.findings} />
+          </section>
+        )}
+
+        {(state.verificationRun || state.twinResult) && (
+          <section className="cs-section" aria-label="Verification and Twin results">
+            <VerificationPanel
+              verificationRun={state.verificationRun}
+              twinResult={state.twinResult}
+            />
+          </section>
+        )}
+
+        {state.rehearsal && (state.agentTaskSpec || state.hasAgentPack || TERMINAL_STAGES.includes(currentStage)) && (
+          <section className="cs-section" aria-label="Agent Pack and handoff">
+            <AgentPackPanel
+              rehearsalId={state.rehearsal.id}
+              agentTaskSpec={state.agentTaskSpec}
+              hasAgentPack={state.hasAgentPack}
+            />
           </section>
         )}
 

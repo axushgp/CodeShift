@@ -30,6 +30,7 @@ from app.models.rehearsal import Rehearsal, RehearsalStage, RehearsalStatus
 from app.models.repository_profile import RepositoryProfile
 from app.models.twin import TwinResult
 from app.models.verification_run import VerificationRun
+from app.models.agent_task import AgentTaskSpec
 
 logger = logging.getLogger(__name__)
 
@@ -201,3 +202,28 @@ def load_latest_verification_run(rehearsal_id: str) -> Optional[VerificationRun]
     if not runs:
         return None
     return max(runs, key=lambda r: r.round)
+
+
+# ── Agent Task Spec & Pack ───────────────────────────────────────────────────
+
+def save_agent_task_spec(spec: AgentTaskSpec) -> None:
+    d = _ensure_dir(spec.rehearsal_id)
+    path = d / "agent_task.json"
+    path.write_text(spec.model_dump_json(indent=2), encoding="utf-8")
+    logger.debug("Saved agent task spec for rehearsal %s", spec.rehearsal_id)
+
+
+def load_agent_task_spec(rehearsal_id: str) -> Optional[AgentTaskSpec]:
+    path = _rehearsal_dir(rehearsal_id) / "agent_task.json"
+    if not path.exists():
+        return None
+    try:
+        return AgentTaskSpec.model_validate_json(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.warning("Failed to load agent task spec %s: %s", rehearsal_id, exc)
+        return None
+
+
+def has_agent_pack(rehearsal_id: str) -> bool:
+    pack_dir = _rehearsal_dir(rehearsal_id) / "agent_pack"
+    return pack_dir.exists() and (pack_dir / "agent_task.json").exists()

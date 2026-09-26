@@ -14,9 +14,10 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 
+from app.models.agent_task import AgentTaskSpec
 from app.models.baseline import BaselineResult
 from app.models.migration_plan import MigrationPlan
 from app.models.rehearsal import (
@@ -29,6 +30,7 @@ from app.models.rehearsal import (
 from app.models.repository_profile import RepositoryProfile
 from app.models.twin import TwinResult
 from app.models.verification_run import DiagnosisRecord, RepairRecord, VerificationRun
+from app.services import agent_pack as agent_pack_svc
 from app.services import baseline as baseline_svc
 from app.services import diagnosis as diagnosis_svc
 from app.services import executor as executor_svc
@@ -67,6 +69,23 @@ class RehearsalResponse(BaseModel):
     migration_plan: Optional[MigrationPlan] = None
     twin_result: Optional[TwinResult] = None
     verification_run: Optional[VerificationRun] = None
+    agent_task_spec: Optional[AgentTaskSpec] = None
+    has_agent_pack: bool = False
+
+
+class AgentPackResponse(BaseModel):
+    """Response from POST /api/rehearsals/{id}/agent-pack."""
+
+    rehearsal_id: str
+    spec: AgentTaskSpec
+    files: list[str]
+
+
+class ImplementationPromptResponse(BaseModel):
+    """Response from GET /api/rehearsals/{id}/implementation-prompt."""
+
+    rehearsal_id: str
+    prompt: str
 
 
 class AnalyzeResponse(BaseModel):
@@ -197,6 +216,44 @@ def _run_twin_and_migrate(rehearsal_id: str) -> None:
 
 
 
+def _finalize_and_save_agent_pack(
+    rehearsal_id: str,
+    final_stage: RehearsalStage,
+    final_status: RehearsalStatus,
+) -> None:
+    """Generate and persist AgentTaskSpec and CodeShift-Agent-Pack/ files."""
+    store.update_rehearsal_stage(
+        rehearsal_id, RehearsalStage.FINALIZING, status=RehearsalStatus.RUNNING
+    )
+    rehearsal = store.load_rehearsal(rehearsal_id)
+    if not rehearsal:
+        return
+    profile = store.load_repo_profile(rehearsal_id)
+    baseline = store.load_baseline(rehearsal_id)
+    plan = store.load_migration_plan(rehearsal_id)
+    twin = store.load_twin_result(rehearsal_id)
+    ver_run = store.load_latest_verification_run(rehearsal_id)
+
+    spec = agent_pack_svc.build_agent_task_spec(
+        rehearsal=rehearsal,
+        profile=profile,
+        baseline=baseline,
+        plan=plan,
+        twin=twin,
+        ver_run=ver_run,
+    )
+    store.save_agent_task_spec(spec)
+    pack_files = agent_pack_svc.generate_agent_pack_files(spec, plan, twin, ver_run)
+    agent_pack_svc.save_agent_pack(rehearsal_id, pack_files)
+
+    store.update_rehearsal_stage(rehearsal_id, final_stage, status=final_status)
+    logger.info(
+        "Agent Pack finalized for rehearsal %s with status %s",
+        rehearsal_id,
+        final_status.value,
+    )
+
+
 def _run_verify_pipeline(rehearsal_id: str) -> None:
     """
     Synchronous pipeline: VERIFYING → DIAGNOSING → REPAIRING → VERIFYING → FINALIZING.
@@ -207,7 +264,8 @@ def _run_verify_pipeline(rehearsal_id: str) -> None:
       3. For migration-relevant failures: call Watsonx diagnosis.
       4. Apply safe targeted repairs inside the Twin.
       5. Re-run verification (round 2).
-      6. Set final rehearsal status: VERIFIED or REQUIRES_HUMAN_REVIEW.
+      6. Finalize: build AgentTaskSpec and generate Agent Pack.
+      7. Set final rehearsal status: COMPLETE (VERIFIED) or REQUIRES_HUMAN_REVIEW.
 
     The original workspace is never modified.
     """
@@ -282,12 +340,10 @@ def _run_verify_pipeline(rehearsal_id: str) -> None:
             run1.passed = True
             run1.summary = "All checks passed after migration. No regressions detected."
             store.save_verification_run(run1)
-            store.update_rehearsal_stage(
-                rehearsal_id,
-                RehearsalStage.COMPLETE,
-                status=RehearsalStatus.COMPLETE,
-            )
             logger.info("Rehearsal %s: VERIFIED after round 1", rehearsal_id)
+            _finalize_and_save_agent_pack(
+                rehearsal_id, RehearsalStage.COMPLETE, RehearsalStatus.COMPLETE
+            )
             return
 
         # ── DIAGNOSING ────────────────────────────────────────────────────────
@@ -359,12 +415,12 @@ def _run_verify_pipeline(rehearsal_id: str) -> None:
                 "No safe targeted repairs available — human review required."
             )
             store.save_verification_run(run1)
-            store.update_rehearsal_stage(
+            logger.info("Rehearsal %s: REQUIRES_HUMAN_REVIEW (no repairs applied)", rehearsal_id)
+            _finalize_and_save_agent_pack(
                 rehearsal_id,
                 RehearsalStage.REQUIRES_HUMAN_REVIEW,
-                status=RehearsalStatus.REQUIRES_HUMAN_REVIEW,
+                RehearsalStatus.REQUIRES_HUMAN_REVIEW,
             )
-            logger.info("Rehearsal %s: REQUIRES_HUMAN_REVIEW (no repairs applied)", rehearsal_id)
             return
 
         # ── Round 2: VERIFYING (post-repair) ─────────────────────────────────
@@ -390,12 +446,10 @@ def _run_verify_pipeline(rehearsal_id: str) -> None:
             run2.passed = True
             run2.summary = "All checks passed after targeted repair."
             store.save_verification_run(run2)
-            store.update_rehearsal_stage(
-                rehearsal_id,
-                RehearsalStage.COMPLETE,
-                status=RehearsalStatus.COMPLETE,
-            )
             logger.info("Rehearsal %s: VERIFIED after repair (round 2)", rehearsal_id)
+            _finalize_and_save_agent_pack(
+                rehearsal_id, RehearsalStage.COMPLETE, RehearsalStatus.COMPLETE
+            )
         else:
             run2.requires_human_review = True
             remaining = ver2.regression_count
@@ -404,15 +458,15 @@ def _run_verify_pipeline(rehearsal_id: str) -> None:
                 "Human review required."
             )
             store.save_verification_run(run2)
-            store.update_rehearsal_stage(
-                rehearsal_id,
-                RehearsalStage.REQUIRES_HUMAN_REVIEW,
-                status=RehearsalStatus.REQUIRES_HUMAN_REVIEW,
-            )
             logger.info(
                 "Rehearsal %s: REQUIRES_HUMAN_REVIEW after repair (%d regressions remain)",
                 rehearsal_id,
                 remaining,
+            )
+            _finalize_and_save_agent_pack(
+                rehearsal_id,
+                RehearsalStage.REQUIRES_HUMAN_REVIEW,
+                RehearsalStatus.REQUIRES_HUMAN_REVIEW,
             )
 
     except Exception as exc:
@@ -470,16 +524,32 @@ def _run_intake_pipeline(
         baseline = baseline_svc.run_baseline(workspace, profile, rehearsal_id)
         store.save_baseline(baseline)
 
-        # ── Done ─────────────────────────────────────────────────────────────
-        final_status = (
-            RehearsalStatus.COMPLETE if baseline.passed else RehearsalStatus.COMPLETE
+        # ── Migration Analysis ───────────────────────────────────────────────
+        store.update_rehearsal_stage(rehearsal_id, RehearsalStage.ANALYZING)
+        rehearsal = store.load_rehearsal(rehearsal_id)
+        if not rehearsal:
+            return
+        plan = migration_svc.analyze(
+            rehearsal_id=rehearsal_id,
+            profile=profile,
+            target=rehearsal.target_upgrade,
+            is_demo=rehearsal.repository.is_demo,
         )
-        store.update_rehearsal_stage(
-            rehearsal_id,
-            RehearsalStage.COMPLETE,
-            status=final_status,
-        )
-        logger.info("Pipeline complete for rehearsal %s", rehearsal_id)
+        store.save_migration_plan(plan)
+
+        # ── Twin Workspace ───────────────────────────────────────────────────
+        store.update_rehearsal_stage(rehearsal_id, RehearsalStage.TWIN_CREATING)
+        twin = twin_svc.create_twin(workspace, rehearsal_id)
+        store.save_twin_result(twin)
+
+        # ── Migration Execution ──────────────────────────────────────────────
+        store.update_rehearsal_stage(rehearsal_id, RehearsalStage.MIGRATING)
+        twin = executor_svc.execute_migration(twin, plan)
+        store.save_twin_result(twin)
+
+        # ── Verification, Diagnosis, Repair & Finalize ───────────────────────
+        _run_verify_pipeline(rehearsal_id)
+        logger.info("End-to-end rehearsal pipeline complete for %s", rehearsal_id)
 
     except intake_svc.IntakeError as exc:
         logger.warning("Intake failed for rehearsal %s: %s", rehearsal_id, exc)
@@ -600,6 +670,8 @@ async def get_rehearsal(rehearsal_id: str) -> RehearsalResponse:
     migration_plan = store.load_migration_plan(rehearsal_id)
     twin_result = store.load_twin_result(rehearsal_id)
     verification_run = store.load_latest_verification_run(rehearsal_id)
+    agent_task_spec = store.load_agent_task_spec(rehearsal_id)
+    has_pack = store.has_agent_pack(rehearsal_id)
 
     return RehearsalResponse(
         rehearsal=rehearsal,
@@ -608,6 +680,8 @@ async def get_rehearsal(rehearsal_id: str) -> RehearsalResponse:
         migration_plan=migration_plan,
         twin_result=twin_result,
         verification_run=verification_run,
+        agent_task_spec=agent_task_spec,
+        has_agent_pack=has_pack,
     )
 
 
@@ -637,6 +711,7 @@ async def analyze_rehearsal(rehearsal_id: str) -> AnalyzeResponse:
             rehearsal_id=rehearsal_id,
             profile=profile,
             target=rehearsal.target_upgrade,
+            is_demo=rehearsal.repository.is_demo,
         )
     except WatsonxError as exc:
         store.update_rehearsal_stage(
@@ -795,3 +870,73 @@ async def verify_rehearsal(
         summary="Verification queued — background task started.",
     )
     return VerifyResponse(rehearsal_id=rehearsal_id, verification_run=stub_run)
+
+
+def _resolve_pack_files(rehearsal: Rehearsal) -> tuple[AgentTaskSpec, dict[str, str]]:
+    rehearsal_id = rehearsal.id
+    spec = store.load_agent_task_spec(rehearsal_id)
+    profile = store.load_repo_profile(rehearsal_id)
+    baseline = store.load_baseline(rehearsal_id)
+    plan = store.load_migration_plan(rehearsal_id)
+    twin = store.load_twin_result(rehearsal_id)
+    ver_run = store.load_latest_verification_run(rehearsal_id)
+
+    if spec is None:
+        spec = agent_pack_svc.build_agent_task_spec(
+            rehearsal=rehearsal,
+            profile=profile,
+            baseline=baseline,
+            plan=plan,
+            twin=twin,
+            ver_run=ver_run,
+        )
+        store.save_agent_task_spec(spec)
+
+    pack_files = agent_pack_svc.generate_agent_pack_files(spec, plan, twin, ver_run)
+    agent_pack_svc.save_agent_pack(rehearsal_id, pack_files)
+    return spec, pack_files
+
+
+@router.post("/{rehearsal_id}/agent-pack", response_model=AgentPackResponse)
+async def generate_agent_pack_endpoint(rehearsal_id: str) -> AgentPackResponse:
+    """Generate the canonical AgentTaskSpec and CodeShift-Agent-Pack/ package."""
+    rehearsal = store.load_rehearsal(rehearsal_id)
+    if rehearsal is None:
+        raise HTTPException(status_code=404, detail=f"Rehearsal '{rehearsal_id}' not found.")
+
+    spec, pack_files = _resolve_pack_files(rehearsal)
+    return AgentPackResponse(
+        rehearsal_id=rehearsal_id,
+        spec=spec,
+        files=list(pack_files.keys()),
+    )
+
+
+@router.get("/{rehearsal_id}/agent-pack/download")
+async def download_agent_pack(rehearsal_id: str) -> Response:
+    """Download the generated Agent Pack as a ZIP archive."""
+    rehearsal = store.load_rehearsal(rehearsal_id)
+    if rehearsal is None:
+        raise HTTPException(status_code=404, detail=f"Rehearsal '{rehearsal_id}' not found.")
+
+    _, pack_files = _resolve_pack_files(rehearsal)
+    zip_bytes = agent_pack_svc.create_agent_pack_zip_bytes(pack_files)
+    filename = f"CodeShift-Agent-Pack-{rehearsal_id[:8]}.zip"
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/{rehearsal_id}/implementation-prompt", response_model=ImplementationPromptResponse)
+async def get_implementation_prompt(rehearsal_id: str) -> ImplementationPromptResponse:
+    """Retrieve the generated implementation prompt ready for an AI coding agent."""
+    rehearsal = store.load_rehearsal(rehearsal_id)
+    if rehearsal is None:
+        raise HTTPException(status_code=404, detail=f"Rehearsal '{rehearsal_id}' not found.")
+
+    _, pack_files = _resolve_pack_files(rehearsal)
+    prompt = pack_files.get("implementation-prompt.md", "")
+    return ImplementationPromptResponse(rehearsal_id=rehearsal_id, prompt=prompt)
+

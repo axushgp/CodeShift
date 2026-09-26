@@ -50,15 +50,21 @@ _TRANSITIONS: dict[RehearsalStage, list[RehearsalStage]] = {
     ],
     RehearsalStage.DIAGNOSING: [
         RehearsalStage.REPAIRING,
+        RehearsalStage.FINALIZING,
         RehearsalStage.REQUIRES_HUMAN_REVIEW,
         RehearsalStage.FAILED,
     ],
     RehearsalStage.REPAIRING: [
         RehearsalStage.VERIFYING,  # re-verify after repair
+        RehearsalStage.FINALIZING,
         RehearsalStage.REQUIRES_HUMAN_REVIEW,
         RehearsalStage.FAILED,
     ],
-    RehearsalStage.FINALIZING: [RehearsalStage.COMPLETE, RehearsalStage.FAILED],
+    RehearsalStage.FINALIZING: [
+        RehearsalStage.COMPLETE,
+        RehearsalStage.REQUIRES_HUMAN_REVIEW,
+        RehearsalStage.FAILED,
+    ],
     # Terminal stages — no outgoing transitions
     RehearsalStage.COMPLETE: [],
     RehearsalStage.FAILED: [],

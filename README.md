@@ -42,15 +42,17 @@ See [`architecture.md`](architecture.md) — the locked architectural source of 
 
 ## Development Status
 
-**Session 1 — Foundation + Test Infrastructure** ✅
+**CodeShift-Final v1.0 — Completed End-to-End Workflow** ✅
 
-The project foundation is complete:
-- Backend: FastAPI app, core domain models, rehearsal state machine, health endpoint
-- Frontend: React + TypeScript + Vite shell with components and API client foundation
-- Test infrastructure: pytest (backend), Vitest + Testing Library (frontend)
-- All smoke tests passing
-
-Upcoming sessions will implement repository intake, baseline verification, migration intelligence, Watsonx integration, Twin creation, verification, and Agent Pack generation.
+The complete migration rehearsal pipeline is implemented and verified:
+- **Repository Intake & Scan**: URL clone or ZIP upload, repository profiling (package manager, primary language, test runner, lockfile detection).
+- **Baseline Verification**: Clean isolated install, build, test, and lint check.
+- **Migration Intelligence**: IBM watsonx.ai integration with deterministic curated knowledge fallback for React 17 → React 18 migrations.
+- **Disposable Twin**: Isolated git worktree workspace ensuring the user's original repository is never modified.
+- **Verification & Repair**: Multi-round verification against baseline, failure clustering, semantic diagnosis, and targeted repair.
+- **AgentTaskSpec**: Canonical machine-readable task specification preserving `VERIFIED`, `PROPOSED`, and `REQUIRES_HUMAN_REVIEW` statuses.
+- **Agent Pack**: Complete handoff package export (`.zip`) containing `agent_task.json`, `implementation-prompt.md`, `AGENTS.md`, `migration-plan.md`, `findings.json`, `verification.md`, `patch.diff`, and `README.md`.
+- **UI & Handoff**: Immediate implementation prompt copy and direct Agent Pack download.
 
 ---
 

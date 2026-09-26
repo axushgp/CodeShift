@@ -286,3 +286,72 @@ class TestVerificationResult:
         assert VerificationContext.POST_MIGRATION
         assert VerificationContext.POST_REPAIR
         assert VerificationContext.FINAL
+
+
+# ---------------------------------------------------------------------------
+# AgentTaskSpec & Agent Pack
+# ---------------------------------------------------------------------------
+
+from app.models.agent_task import AgentTaskSpec, TaskDetails, RepositoryContext, VerificationSummary
+from app.services.agent_pack import build_agent_task_spec, generate_agent_pack_files, create_agent_pack_zip_bytes
+
+
+class TestAgentTaskSpec:
+    def test_agent_task_spec_creation(self) -> None:
+        spec = AgentTaskSpec(
+            rehearsal_id="rehearsal-123",
+            task=TaskDetails(
+                package="react",
+                from_version="17",
+                to_version="18",
+                status="VERIFIED",
+            ),
+            repository=RepositoryContext(
+                name="my-app",
+                ecosystem="node",
+                package_manager="npm",
+            ),
+            constraints=["Do not modify other files"],
+            files_to_modify=["package.json", "src/index.js"],
+            files_not_to_modify=[".git", "node_modules"],
+            verification=VerificationSummary(
+                baseline_passed=True,
+                final_verification_passed=True,
+                regressions_count=0,
+                status="VERIFIED",
+            ),
+            acceptance_criteria=["All tests pass"],
+        )
+        assert spec.task.package == "react"
+        assert spec.task.status == "VERIFIED"
+        assert len(spec.files_to_modify) == 2
+
+    def test_generate_pack_files_and_zip(self, sample_rehearsal: Rehearsal) -> None:
+        spec = build_agent_task_spec(
+            rehearsal=sample_rehearsal,
+            profile=None,
+            baseline=None,
+            plan=None,
+            twin=None,
+            ver_run=None,
+        )
+        assert spec.task.package == sample_rehearsal.target_upgrade.package
+        files = generate_agent_pack_files(spec, None, None, None)
+
+        expected_files = [
+            "agent_task.json",
+            "implementation-prompt.md",
+            "AGENTS.md",
+            "migration-plan.md",
+            "findings.json",
+            "verification.md",
+            "patch.diff",
+            "README.md",
+        ]
+        for ef in expected_files:
+            assert ef in files
+            assert len(files[ef]) > 0
+
+        zip_bytes = create_agent_pack_zip_bytes(files)
+        assert len(zip_bytes) > 0
+        assert zip_bytes[:2] == b"PK"  # Valid ZIP signature

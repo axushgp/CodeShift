@@ -32,6 +32,8 @@ workspaces/
 twins/
 tmp/
 logs/
+data/
+*.tsbuildinfo
 
 # Generated runtime artifacts
 runtime_output/

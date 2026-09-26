@@ -33,6 +33,13 @@ from app.models.migration_plan import MigrationPlan, PlannedAction
 from app.models.twin import TwinResult, TwinMethod, MigrationStatus, ChangedFile
 from app.models.verification import VerificationResult, VerificationContext
 from app.models.verification_run import VerificationRun, DiagnosisRecord, RepairRecord
+from app.models.agent_task import (
+    AgentTaskSpec,
+    TaskDetails,
+    RepositoryContext,
+    ImplementationStep,
+    VerificationSummary,
+)
 
 __all__ = [
     # Rehearsal
@@ -70,4 +77,10 @@ __all__ = [
     "VerificationRun",
     "DiagnosisRecord",
     "RepairRecord",
+    # Agent Task Spec
+    "AgentTaskSpec",
+    "TaskDetails",
+    "RepositoryContext",
+    "ImplementationStep",
+    "VerificationSummary",
 ]

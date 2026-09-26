@@ -99,3 +99,12 @@ export function startRehearsalFromZip(
 export function getRehearsalStatus(rehearsalId: string): Promise<RehearsalResponse> {
   return apiClient.get<RehearsalResponse>(`/api/rehearsals/${rehearsalId}`)
 }
+
+export function getImplementationPrompt(rehearsalId: string): Promise<{ rehearsal_id: string; prompt: string }> {
+  return apiClient.get<{ rehearsal_id: string; prompt: string }>(`/api/rehearsals/${rehearsalId}/implementation-prompt`)
+}
+
+export function getAgentPackDownloadUrl(rehearsalId: string): string {
+  const base = BASE_URL.replace(/\/+$/, '')
+  return `${base}/api/rehearsals/${rehearsalId}/agent-pack/download`
+}

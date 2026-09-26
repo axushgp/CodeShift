@@ -292,21 +292,58 @@ def _parse_plan(
 
 # ── Public entry point ─────────────────────────────────────────────────────────
 
+def _knowledge_to_raw_plan(
+    knowledge: dict,
+    profile: RepositoryProfile,
+    target: TargetUpgrade,
+) -> dict:
+    findings = []
+    for b in knowledge.get("breaking_changes", []):
+        findings.append({
+            "type": "BREAKING_CHANGE",
+            "severity": b.get("severity", "HIGH"),
+            "title": b.get("title", ""),
+            "reason": b.get("description", ""),
+            "required_action": b.get("replacement", ""),
+            "affected_files": [],
+        })
+    for d in knowledge.get("deprecated_apis", []):
+        findings.append({
+            "type": "DEPRECATED_API",
+            "severity": d.get("severity", "HIGH"),
+            "title": f"Deprecated API: {d.get('api')}",
+            "reason": f"API {d.get('api')} is deprecated in {target.package} {target.to_version}.",
+            "required_action": f"Replace with {d.get('replacement')}",
+            "affected_files": [],
+        })
+    planned_actions = []
+    for a in knowledge.get("migration_actions", []):
+        planned_actions.append({
+            "action_type": a.get("action_type", "MANUAL"),
+            "description": a.get("description", ""),
+            "target_files": ["package.json"] if a.get("action_type") == "VERSION_BUMP" else [],
+            "command": a.get("codemod_hint"),
+        })
+    return {
+        "findings": findings,
+        "planned_actions": planned_actions,
+        "notes": f"Deterministic plan derived from {knowledge.get('package')} {knowledge.get('to_version')} knowledge base.",
+    }
+
+
 def analyze(
     rehearsal_id: str,
     profile: RepositoryProfile,
     target: TargetUpgrade,
+    is_demo: bool = False,
 ) -> MigrationPlan:
     """
     Run migration analysis for a rehearsal.
 
     1. Load applicable migration knowledge.
     2. Build compact prompt.
-    3. Call Watsonx.
+    3. Call Watsonx (or fall back to curated knowledge only in explicit demo mode).
     4. Parse and validate result into a MigrationPlan.
-
-    Raises MigrationAnalysisError on unrecoverable failure.
-    Raises WatsonxError (subclass of Exception) on Watsonx credential/network issues.
     """
     settings = get_settings()
 
@@ -330,18 +367,26 @@ def analyze(
     logger.debug("Migration prompt (%d chars):\n%s", len(prompt), prompt[:500])
 
     client = WatsonxClient()
+    raw_dict = None
     try:
         raw_text = client.generate(prompt, max_new_tokens=1500)
-    except WatsonxError:
-        raise  # Caller decides how to surface credential / network errors
-
-    try:
-        raw_dict = _extract_json(raw_text)
-    except (json.JSONDecodeError, MigrationAnalysisError) as exc:
-        raise MigrationAnalysisError(
-            f"Watsonx output could not be parsed as a MigrationPlan: {exc}. "
-            f"Raw output (first 400 chars): {raw_text[:400]}"
-        ) from exc
+        try:
+            raw_dict = _extract_json(raw_text)
+        except (json.JSONDecodeError, MigrationAnalysisError) as exc:
+            if is_demo and knowledge:
+                logger.warning("Could not parse Watsonx output in demo mode; using knowledge base: %s", exc)
+                raw_dict = _knowledge_to_raw_plan(knowledge, profile, target)
+            else:
+                raise MigrationAnalysisError(
+                    f"Watsonx output could not be parsed as a MigrationPlan: {exc}. "
+                    f"Raw output (first 400 chars): {raw_text[:400]}"
+                ) from exc
+    except WatsonxError as exc:
+        if is_demo and knowledge:
+            logger.info("Watsonx unavailable in demo mode (%s); using curated demo knowledge base", exc)
+            raw_dict = _knowledge_to_raw_plan(knowledge, profile, target)
+        else:
+            raise
 
     plan = _parse_plan(
         raw_dict,
