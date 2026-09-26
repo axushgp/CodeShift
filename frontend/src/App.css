@@ -272,3 +272,237 @@ body {
   font-size: 0.8125rem;
   color: var(--cs-text-muted);
 }
+
+/* Form tabs (URL / ZIP toggle) */
+.cs-form__tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--cs-border);
+  padding-bottom: 0.75rem;
+}
+
+.cs-tab {
+  background: none;
+  border: 1px solid var(--cs-border);
+  border-radius: 6px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: var(--cs-text-muted);
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.cs-tab--active {
+  border-color: var(--cs-accent);
+  color: var(--cs-accent);
+  font-weight: 500;
+}
+
+.cs-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cs-form__hint {
+  font-size: 0.8125rem;
+  color: var(--cs-text-muted);
+}
+
+/* Repository Profile Panel */
+.cs-profile {
+  border: 1px solid var(--cs-border);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.cs-profile__title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.cs-profile__grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0 0 0.75rem;
+}
+
+.cs-profile__label {
+  font-size: 0.8125rem;
+  color: var(--cs-text-muted);
+  font-weight: 500;
+}
+
+.cs-profile__value {
+  font-size: 0.875rem;
+  margin: 0;
+  word-break: break-word;
+}
+
+.cs-profile__section {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--cs-border);
+  padding-top: 0.75rem;
+}
+
+.cs-profile__section-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--cs-text-muted);
+}
+
+.cs-profile__dep-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.cs-profile__dep {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  padding: 0.15rem 0;
+}
+
+.cs-profile__dep-name {
+  color: var(--cs-text);
+}
+
+.cs-profile__dep-version {
+  color: var(--cs-text-muted);
+}
+
+/* Baseline Panel */
+.cs-baseline {
+  border: 1px solid var(--cs-border);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.cs-baseline__title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cs-baseline__badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.cs-baseline__badge--passed {
+  background: #dcfce7;
+  color: var(--cs-success);
+}
+
+.cs-baseline__badge--failed {
+  background: #fee2e2;
+  color: var(--cs-error);
+}
+
+.cs-baseline__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cs-baseline__notes {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--cs-text-muted);
+}
+
+/* Step row */
+.cs-step {
+  border: 1px solid var(--cs-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.cs-step--passed { border-left: 3px solid var(--cs-success); }
+.cs-step--failed { border-left: 3px solid var(--cs-error); }
+.cs-step--skipped { border-left: 3px solid var(--cs-border); }
+
+.cs-step__header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.75rem;
+  flex-wrap: wrap;
+  background: var(--cs-surface);
+}
+
+.cs-step__label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  min-width: 4rem;
+}
+
+.cs-step__status {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.cs-step__status--passed { background: #dcfce7; color: var(--cs-success); }
+.cs-step__status--failed { background: #fee2e2; color: var(--cs-error); }
+.cs-step__status--skipped { background: var(--cs-border); color: var(--cs-text-muted); }
+.cs-step__status--not-run { background: var(--cs-border); color: var(--cs-text-muted); }
+
+.cs-step__cmd {
+  flex: 1;
+  font-size: 0.75rem;
+  color: var(--cs-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-step__duration {
+  font-size: 0.75rem;
+  color: var(--cs-text-muted);
+}
+
+.cs-step__toggle {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--cs-border);
+  border-radius: 4px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--cs-text-muted);
+}
+
+.cs-step__output {
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--cs-border);
+}
+
+.cs-step__pre {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.cs-step__pre--stderr {
+  color: var(--cs-error);
+}

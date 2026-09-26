@@ -35,10 +35,11 @@ class Settings(BaseSettings):
     # Persistence
     data_dir: str = "data"
 
-    # Watsonx (not used in Session 1 — placeholder for future sessions)
+    # Watsonx
     watsonx_api_key: str = ""
     watsonx_project_id: str = ""
     watsonx_url: str = "https://us-south.ml.cloud.ibm.com"
+    watsonx_model_id: str = "ibm/granite-13b-instruct-v2"
 
 
 @lru_cache(maxsize=1)

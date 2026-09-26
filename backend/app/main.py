@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.logging_config import configure_logging
 from app.api import health
+from app.api import rehearsals
 
 # Configure logging before anything else
 configure_logging()
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
 
     # Routers
     app.include_router(health.router)
+    app.include_router(rehearsals.router)
 
     # Global exception handler
     @app.exception_handler(Exception)
@@ -65,7 +67,7 @@ def create_app() -> FastAPI:
             },
         )
 
-    @app.on_event("startup")  # noqa: FastAPI deprecation — upgrade to lifespan in Session 2
+    @app.on_event("startup")  # noqa: FastAPI deprecation
     async def on_startup() -> None:
         logger.info(
             "%s v%s starting in %s mode",

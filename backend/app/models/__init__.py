@@ -30,7 +30,9 @@ from app.models.finding import (
     FindingStatus,
 )
 from app.models.migration_plan import MigrationPlan, PlannedAction
+from app.models.twin import TwinResult, TwinMethod, MigrationStatus, ChangedFile
 from app.models.verification import VerificationResult, VerificationContext
+from app.models.verification_run import VerificationRun, DiagnosisRecord, RepairRecord
 
 __all__ = [
     # Rehearsal
@@ -56,7 +58,16 @@ __all__ = [
     # Migration Plan
     "MigrationPlan",
     "PlannedAction",
+    # Twin
+    "TwinResult",
+    "TwinMethod",
+    "MigrationStatus",
+    "ChangedFile",
     # Verification
     "VerificationResult",
     "VerificationContext",
+    # Verification Run (Session 5)
+    "VerificationRun",
+    "DiagnosisRecord",
+    "RepairRecord",
 ]

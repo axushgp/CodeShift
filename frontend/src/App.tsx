@@ -1,51 +1,139 @@
 /**
  * Main App component — CodeShift application shell.
  *
- * Provides the top-level layout and wires together:
- * - Header
- * - RehearsalForm (input)
- * - StatusPanel (current stage)
- * - ResultsArea (findings / results)
- *
- * Real API integration is added in later sessions.
- * This session establishes the clean structure and loading/error states.
+ * Wires the RehearsalForm to the backend API:
+ * 1. Submit → POST /api/rehearsals (URL) or POST /api/rehearsals/upload (ZIP)
+ * 2. Poll GET /api/rehearsals/{id} until terminal stage
+ * 3. Display profile + baseline results
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Header } from './components/Header'
 import { RehearsalForm, type RehearsalFormValues } from './components/RehearsalForm'
 import { StatusPanel } from './components/StatusPanel'
 import { ResultsArea } from './components/ResultsArea'
-import type { RehearsalStage, RehearsalStatus } from './types'
+import { RepoProfilePanel } from './components/RepoProfilePanel'
+import { BaselinePanel } from './components/BaselinePanel'
+import {
+  ApiClientError,
+  getRehearsalStatus,
+  startRehearsalFromUrl,
+  startRehearsalFromZip,
+} from './api/client'
+import type {
+  BaselineResult,
+  Rehearsal,
+  RehearsalStage,
+  RehearsalStatus,
+  RepositoryProfile,
+} from './types'
 import './App.css'
 
+const TERMINAL_STAGES: RehearsalStage[] = ['COMPLETE', 'FAILED', 'REQUIRES_HUMAN_REVIEW']
+const POLL_INTERVAL_MS = 2000
+
 interface AppState {
-  stage: RehearsalStage
-  status: RehearsalStatus
-  errorMessage?: string
+  rehearsal: Rehearsal | null
+  profile: RepositoryProfile | null
+  baseline: BaselineResult | null
+  errorMessage: string | null
   isLoading: boolean
 }
 
 const INITIAL_STATE: AppState = {
-  stage: 'INTAKE',
-  status: 'PENDING',
+  rehearsal: null,
+  profile: null,
+  baseline: null,
+  errorMessage: null,
   isLoading: false,
 }
 
 function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  function handleStartRehearsal(values: RehearsalFormValues) {
-    // Placeholder: in Session 2+, this calls POST /api/rehearsals
-    console.info('Starting rehearsal', values)
-    setState({
-      stage: 'SCANNING',
-      status: 'RUNNING',
-      isLoading: true,
-    })
+  function stopPolling() {
+    if (pollRef.current != null) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
   }
 
-  const isRunning = state.status === 'RUNNING'
+  // Clean up on unmount
+  useEffect(() => () => stopPolling(), [])
+
+  function startPolling(rehearsalId: string) {
+    stopPolling()
+    pollRef.current = setInterval(async () => {
+      try {
+        const data = await getRehearsalStatus(rehearsalId)
+        setState((prev) => ({
+          ...prev,
+          rehearsal: data.rehearsal,
+          profile: data.repo_profile ?? prev.profile,
+          baseline: data.baseline ?? prev.baseline,
+          isLoading: !TERMINAL_STAGES.includes(data.rehearsal.stage),
+          errorMessage: data.rehearsal.error_message ?? null,
+        }))
+        if (TERMINAL_STAGES.includes(data.rehearsal.stage)) {
+          stopPolling()
+        }
+      } catch (err) {
+        console.error('Polling error', err)
+        stopPolling()
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          errorMessage: 'Lost connection to backend. Please refresh and try again.',
+        }))
+      }
+    }, POLL_INTERVAL_MS)
+  }
+
+  async function handleStartRehearsal(values: RehearsalFormValues) {
+    setState({ ...INITIAL_STATE, isLoading: true })
+
+    try {
+      let data
+      if (values.mode === 'url') {
+        data = await startRehearsalFromUrl({
+          repository_url: values.repositoryUrl,
+          target_package: values.targetPackage,
+          target_version: values.targetVersion,
+        })
+      } else {
+        if (!values.zipFile) return
+        data = await startRehearsalFromZip(
+          values.zipFile,
+          values.targetPackage,
+          values.targetVersion,
+        )
+      }
+
+      setState({
+        rehearsal: data.rehearsal,
+        profile: data.repo_profile ?? null,
+        baseline: data.baseline ?? null,
+        errorMessage: null,
+        isLoading: true,
+      })
+
+      startPolling(data.rehearsal.id)
+    } catch (err) {
+      let msg = 'Failed to start rehearsal.'
+      if (err instanceof ApiClientError) {
+        const body = err.body as Record<string, unknown> | null
+        msg = (body?.detail as string) || msg
+      } else if (err instanceof Error) {
+        msg = err.message
+      }
+      setState({ ...INITIAL_STATE, errorMessage: msg, isLoading: false })
+    }
+  }
+
+  const currentStage: RehearsalStage = state.rehearsal?.stage ?? 'INTAKE'
+  const currentStatus: RehearsalStatus = state.rehearsal?.status ?? (state.isLoading ? 'RUNNING' : 'PENDING')
+  const showStatus = state.rehearsal != null || state.errorMessage != null || state.isLoading
 
   return (
     <div className="cs-app" data-testid="app-root">
@@ -55,23 +143,37 @@ function App() {
         <section className="cs-section" aria-label="Start a rehearsal">
           <RehearsalForm
             onSubmit={handleStartRehearsal}
-            disabled={isRunning}
+            disabled={state.isLoading}
           />
         </section>
 
-        {state.status !== 'PENDING' && (
+        {showStatus && (
           <section className="cs-section" aria-label="Rehearsal status">
             <StatusPanel
-              stage={state.stage}
-              status={state.status}
-              errorMessage={state.errorMessage}
+              stage={currentStage}
+              status={currentStatus}
+              errorMessage={state.errorMessage ?? undefined}
             />
           </section>
         )}
 
-        <section className="cs-section" aria-label="Results">
-          <ResultsArea isLoading={state.isLoading} />
-        </section>
+        {state.profile && (
+          <section className="cs-section" aria-label="Repository profile">
+            <RepoProfilePanel profile={state.profile} />
+          </section>
+        )}
+
+        {state.baseline && (
+          <section className="cs-section" aria-label="Baseline results">
+            <BaselinePanel baseline={state.baseline} />
+          </section>
+        )}
+
+        {!state.profile && !state.isLoading && (
+          <section className="cs-section" aria-label="Results">
+            <ResultsArea isLoading={false} />
+          </section>
+        )}
       </main>
 
       <footer className="cs-footer">

@@ -106,6 +106,79 @@ export interface MigrationFinding {
 }
 
 // ---------------------------------------------------------------------------
+// Repository Profile
+// ---------------------------------------------------------------------------
+
+export type Ecosystem = 'node' | 'python' | 'unknown'
+export type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'bun' | 'pip' | 'poetry' | 'uv' | 'unknown'
+
+export interface ScriptInfo {
+  name: string
+  command: string
+}
+
+export interface SourceStructure {
+  src_dirs: string[]
+  test_dirs: string[]
+  config_files: string[]
+  entry_points: string[]
+}
+
+export interface RepositoryProfile {
+  rehearsal_id: string
+  name?: string
+  source_url?: string
+  ecosystem: Ecosystem
+  runtime?: string
+  package_manager: PackageManager
+  framework?: string
+  dependencies: Record<string, string>
+  dev_dependencies: Record<string, string>
+  lockfile?: string
+  build_scripts: ScriptInfo[]
+  test_scripts: ScriptInfo[]
+  lint_scripts: ScriptInfo[]
+  structure: SourceStructure
+  raw_manifest?: Record<string, unknown>
+}
+
+// ---------------------------------------------------------------------------
+// Baseline
+// ---------------------------------------------------------------------------
+
+export type StepStatus = 'PASSED' | 'FAILED' | 'SKIPPED' | 'NOT_RUN'
+
+export interface CommandResult {
+  step: string
+  command: string
+  exit_code: number
+  stdout: string
+  stderr: string
+  duration_seconds?: number
+  status: StepStatus
+}
+
+export interface BaselineResult {
+  rehearsal_id: string
+  install?: CommandResult
+  build?: CommandResult
+  test?: CommandResult
+  lint?: CommandResult
+  passed: boolean
+  notes?: string
+}
+
+// ---------------------------------------------------------------------------
+// Rehearsal API response
+// ---------------------------------------------------------------------------
+
+export interface RehearsalResponse {
+  rehearsal: Rehearsal
+  repo_profile?: RepositoryProfile
+  baseline?: BaselineResult
+}
+
+// ---------------------------------------------------------------------------
 // API response helpers
 // ---------------------------------------------------------------------------
 

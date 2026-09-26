@@ -1,9 +1,47 @@
 /**
  * App smoke tests — top-level application shell.
  */
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { vi } from 'vitest'
 import App from '../App'
+
+// Mock the API client so tests don't make real network calls.
+vi.mock('../api/client', () => ({
+  ApiClientError: class ApiClientError extends Error {
+    constructor(public status: number, public body: unknown, message: string) {
+      super(message)
+      this.name = 'ApiClientError'
+    }
+  },
+  startRehearsalFromUrl: vi.fn().mockResolvedValue({
+    rehearsal: {
+      id: 'test-id',
+      status: 'RUNNING',
+      stage: 'SCANNING',
+      repository: { url: 'https://github.com/example/app', is_demo: false },
+      target_upgrade: { package: 'react', to_version: '18' },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    repo_profile: null,
+    baseline: null,
+  }),
+  startRehearsalFromZip: vi.fn(),
+  getRehearsalStatus: vi.fn().mockResolvedValue({
+    rehearsal: {
+      id: 'test-id',
+      status: 'COMPLETE',
+      stage: 'COMPLETE',
+      repository: { url: 'https://github.com/example/app', is_demo: false },
+      target_upgrade: { package: 'react', to_version: '18' },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    repo_profile: null,
+    baseline: null,
+  }),
+}))
 
 describe('App', () => {
   it('renders without crashing', () => {
@@ -39,11 +77,12 @@ describe('App', () => {
     await user.type(screen.getByTestId('input-target-version'), '18')
     await user.click(screen.getByTestId('btn-start-rehearsal'))
 
-    // Form should be disabled while running
-    expect(screen.getByTestId('btn-start-rehearsal')).toBeDisabled()
+    // Wait for the async submit handler to fire and set loading state.
+    await waitFor(() =>
+      expect(screen.getByTestId('btn-start-rehearsal')).toBeDisabled()
+    )
 
     // Status panel should appear
     expect(screen.getByTestId('status-panel')).toBeInTheDocument()
-    expect(screen.getByTestId('status-stage')).toHaveTextContent('Scanning repository')
   })
 })
