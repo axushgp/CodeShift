@@ -1,52 +1,38 @@
 """
-Service managing verified Quick Start demo configurations.
+Service managing default Quick Start demo repository catalog.
+
+Loads the catalog from the single manifest data file (demo_catalog.json).
 """
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Optional
 
 from app.models.demo import DemoManifest
 
-DEMO_CATALOG: list[DemoManifest] = [
-    DemoManifest(
-        id="datocms-plugin-iframe-tab",
-        name="DatoCMS Plugin Iframe Tab",
-        repository_url="https://github.com/thebuilder/datocms-plugin-iframe-tab",
-        description="Public DatoCMS plugin built with React 17, Vite, and Yarn.",
-        package="react",
-        source_version="17.0.2",
-        target_version="18.0.0",
-    ),
-    DemoManifest(
-        id="vite-react-17-template",
-        name="Vite React 17 Starter",
-        repository_url="https://github.com/colinbarry/vite-react-17-template",
-        description="Clean minimal React 17 application built with Vite and npm.",
-        package="react",
-        source_version="17.0.2",
-        target_version="18.0.0",
-    ),
-    DemoManifest(
-        id="vite-react17-tailwind",
-        name="Vite React 17 Tailwind Starter",
-        repository_url="https://github.com/CrzMarvin/Vite-React17-Tailwind3-",
-        description="React 17 application configured with Tailwind CSS 3 and Vite.",
-        package="react",
-        source_version="17.0.2",
-        target_version="18.0.0",
-    ),
-]
+CATALOG_PATH = Path(__file__).resolve().parent.parent / "demo_catalog.json"
+
+
+def load_demo_catalog(path: Optional[Path] = None) -> list[DemoManifest]:
+    """Load the demo manifest catalog from disk."""
+    target_path = path or CATALOG_PATH
+    if not target_path.exists():
+        return []
+    with open(target_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return [DemoManifest(**item) for item in data]
 
 
 def get_all_demos() -> list[DemoManifest]:
-    """Return all available Quick Start demo configurations."""
-    return list(DEMO_CATALOG)
+    """Return all available Quick Start demo configurations from the catalog."""
+    return load_demo_catalog()
 
 
 def get_demo_by_id(demo_id: str) -> Optional[DemoManifest]:
     """Retrieve a demo configuration by its ID."""
-    for demo in DEMO_CATALOG:
+    for demo in get_all_demos():
         if demo.id == demo_id:
             return demo
     return None
