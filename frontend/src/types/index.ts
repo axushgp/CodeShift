@@ -131,6 +131,9 @@ export interface RepositoryProfile {
   ecosystem: Ecosystem
   runtime?: string
   package_manager: PackageManager
+  package_manager_version?: string
+  environment_requirements?: Record<string, string>
+  relevant_scripts?: Record<string, string>
   framework?: string
   dependencies: Record<string, string>
   dev_dependencies: Record<string, string>
@@ -146,7 +149,19 @@ export interface RepositoryProfile {
 // Baseline
 // ---------------------------------------------------------------------------
 
-export type StepStatus = 'PASSED' | 'FAILED' | 'SKIPPED' | 'NOT_RUN'
+export type StepStatus =
+  | 'PASSED'
+  | 'FAILED'
+  | 'SKIPPED'
+  | 'SKIPPED_NOT_APPLICABLE'
+  | 'ENVIRONMENT_UNAVAILABLE'
+  | 'NOT_RUN'
+
+export type BaselineStatus =
+  | 'PASS'
+  | 'FAIL'
+  | 'SKIPPED_NOT_APPLICABLE'
+  | 'ENVIRONMENT_UNAVAILABLE'
 
 export interface CommandResult {
   step: string
@@ -168,6 +183,7 @@ export interface TestRunSummary {
 
 export interface BaselineResult {
   rehearsal_id: string
+  status?: BaselineStatus
   install?: CommandResult
   build?: CommandResult
   test?: CommandResult

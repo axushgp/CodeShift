@@ -16,10 +16,26 @@ export function RepoProfilePanel({ profile }: RepoProfilePanelProps) {
       <dl className="cs-profile__grid">
         {profile.name && <Row label="Name" value={profile.name} />}
         <Row label="Ecosystem" value={profile.ecosystem} />
-        <Row label="Package Manager" value={profile.package_manager} />
+        <Row
+          label="Package Manager"
+          value={
+            profile.package_manager_version
+              ? `${profile.package_manager} (${profile.package_manager_version})`
+              : profile.package_manager
+          }
+        />
         {profile.runtime && <Row label="Runtime" value={profile.runtime} />}
         {profile.framework && <Row label="Framework" value={profile.framework} />}
         {profile.lockfile && <Row label="Lockfile" value={profile.lockfile} />}
+        {profile.environment_requirements &&
+          Object.keys(profile.environment_requirements).length > 0 && (
+            <Row
+              label="Requirements"
+              value={Object.entries(profile.environment_requirements)
+                .map(([k, v]) => `${k}: ${v}`)
+                .join(', ')}
+            />
+          )}
       </dl>
 
       {Object.keys(profile.dependencies).length > 0 && (

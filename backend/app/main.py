@@ -19,6 +19,7 @@ from app.config import get_settings
 from app.logging_config import configure_logging
 from app.api import health
 from app.api import rehearsals
+from app.api import demos
 
 # Configure logging before anything else
 configure_logging()
@@ -52,6 +53,7 @@ def create_app() -> FastAPI:
     # Routers
     app.include_router(health.router)
     app.include_router(rehearsals.router)
+    app.include_router(demos.router)
 
     # Global exception handler
     @app.exception_handler(Exception)

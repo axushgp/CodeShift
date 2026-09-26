@@ -18,7 +18,7 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Respo
 from pydantic import BaseModel
 
 from app.models.agent_task import AgentTaskSpec
-from app.models.baseline import BaselineResult
+from app.models.baseline import BaselineResult, BaselineStatus
 from app.models.migration_plan import MigrationPlan
 from app.models.rehearsal import (
     Rehearsal,
@@ -42,6 +42,7 @@ from app.services import scanner as scanner_svc
 from app.services import store
 from app.services import twin as twin_svc
 from app.services import verification as verification_svc
+from app.services import demos as demos_svc
 from app.services.watsonx_client import WatsonxError
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ class StartRehearsalRequest(BaseModel):
     target_package: str
     target_version: str
     from_version: Optional[str] = None
+    is_demo: bool = False
 
 
 class RehearsalResponse(BaseModel):
@@ -524,6 +526,17 @@ def _run_intake_pipeline(
         baseline = baseline_svc.run_baseline(workspace, profile, rehearsal_id)
         store.save_baseline(baseline)
 
+        if baseline.status == BaselineStatus.ENVIRONMENT_UNAVAILABLE:
+            error_msg = f"Environment unavailable: {baseline.notes or 'Required package manager is not available'}"
+            logger.warning("Rehearsal %s baseline environment unavailable: %s", rehearsal_id, error_msg)
+            store.update_rehearsal_stage(
+                rehearsal_id,
+                RehearsalStage.FAILED,
+                status=RehearsalStatus.FAILED,
+                error_message=error_msg,
+            )
+            return
+
         # ── Migration Analysis ───────────────────────────────────────────────
         store.update_rehearsal_stage(rehearsal_id, RehearsalStage.ANALYZING)
         rehearsal = store.load_rehearsal(rehearsal_id)
@@ -587,8 +600,12 @@ async def start_rehearsal_url(
     The pipeline (intake → scan → baseline) runs in the background.
     Poll GET /api/rehearsals/{id} for results.
     """
+    is_demo = body.is_demo or any(
+        d.repository_url.rstrip("/").lower() == body.repository_url.rstrip("/").lower()
+        for d in demos_svc.get_all_demos()
+    )
     rehearsal = Rehearsal(
-        repository=RepositorySource(url=body.repository_url),
+        repository=RepositorySource(url=body.repository_url, is_demo=is_demo),
         target_upgrade=TargetUpgrade(
             package=body.target_package,
             to_version=body.target_version,

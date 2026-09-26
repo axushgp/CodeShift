@@ -75,5 +75,18 @@ class VerificationResult(BaseModel):
     def compute_passed(self) -> bool:
         """Recompute passed from individual steps."""
         steps = [s for s in [self.install, self.build, self.test, self.lint] if s]
-        self.passed = all(s.status == StepStatus.PASSED for s in steps)
+        executed = [
+            s
+            for s in steps
+            if s.status
+            not in (
+                StepStatus.SKIPPED,
+                StepStatus.SKIPPED_NOT_APPLICABLE,
+                StepStatus.NOT_RUN,
+            )
+        ]
+        if not executed:
+            self.passed = True
+            return True
+        self.passed = all(s.status == StepStatus.PASSED for s in executed)
         return self.passed

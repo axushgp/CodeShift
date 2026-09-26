@@ -350,7 +350,7 @@ def analyze(
     knowledge = _load_knowledge(target.package, target.from_version, target.to_version)
     if knowledge:
         logger.info(
-            "Loaded migration knowledge: %s %s→%s",
+            "Loaded migration knowledge: %s %s->%s",
             knowledge.get("package"),
             knowledge.get("from_version"),
             knowledge.get("to_version"),

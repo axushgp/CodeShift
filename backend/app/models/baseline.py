@@ -23,7 +23,18 @@ class StepStatus(str, Enum):
     PASSED = "PASSED"
     FAILED = "FAILED"
     SKIPPED = "SKIPPED"
+    SKIPPED_NOT_APPLICABLE = "SKIPPED_NOT_APPLICABLE"
+    ENVIRONMENT_UNAVAILABLE = "ENVIRONMENT_UNAVAILABLE"
     NOT_RUN = "NOT_RUN"
+
+
+class BaselineStatus(str, Enum):
+    """Overall outcome of repository baseline verification."""
+
+    PASS = "PASS"
+    FAIL = "FAIL"
+    SKIPPED_NOT_APPLICABLE = "SKIPPED_NOT_APPLICABLE"
+    ENVIRONMENT_UNAVAILABLE = "ENVIRONMENT_UNAVAILABLE"
 
 
 class CommandResult(BaseModel):
@@ -66,6 +77,12 @@ class BaselineResult(BaseModel):
 
     rehearsal_id: str = Field(description="Parent rehearsal identifier")
 
+    # Overall baseline status
+    status: BaselineStatus = Field(
+        default=BaselineStatus.FAIL,
+        description="Overall baseline status: PASS, FAIL, SKIPPED_NOT_APPLICABLE, ENVIRONMENT_UNAVAILABLE",
+    )
+
     # Step results
     install: Optional[CommandResult] = None
     build: Optional[CommandResult] = None
@@ -88,9 +105,45 @@ class BaselineResult(BaseModel):
 
     def compute_passed(self) -> bool:
         """
-        Recompute the passed flag from individual step results.
-        A step that was not run (NOT_RUN / None) does not fail the baseline.
+        Recompute the passed flag and overall status from individual step results.
+
+        Distinguishes clearly between:
+          - PASS: All applicable executed steps passed (at least one passed, none failed/unavailable).
+          - FAIL: Any applicable executed step failed.
+          - SKIPPED_NOT_APPLICABLE: No steps were applicable.
+          - ENVIRONMENT_UNAVAILABLE: Package manager or execution environment was missing.
         """
         steps = [s for s in [self.install, self.build, self.test, self.lint] if s]
-        self.passed = all(s.status == StepStatus.PASSED for s in steps)
-        return self.passed
+
+        if any(s.status == StepStatus.ENVIRONMENT_UNAVAILABLE for s in steps):
+            self.status = BaselineStatus.ENVIRONMENT_UNAVAILABLE
+            self.passed = False
+            return False
+
+        if any(s.status == StepStatus.FAILED for s in steps):
+            self.status = BaselineStatus.FAIL
+            self.passed = False
+            return False
+
+        passed_steps = [s for s in steps if s.status == StepStatus.PASSED]
+        if passed_steps:
+            self.status = BaselineStatus.PASS
+            self.passed = True
+            return True
+
+        if steps and all(
+            s.status in (StepStatus.SKIPPED, StepStatus.SKIPPED_NOT_APPLICABLE, StepStatus.NOT_RUN)
+            for s in steps
+        ):
+            self.status = BaselineStatus.SKIPPED_NOT_APPLICABLE
+            self.passed = True
+            return True
+
+        if not steps:
+            self.status = BaselineStatus.PASS
+            self.passed = True
+            return True
+
+        self.status = BaselineStatus.FAIL
+        self.passed = False
+        return False

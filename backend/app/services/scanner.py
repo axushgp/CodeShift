@@ -32,6 +32,31 @@ _LOCKFILE_PM: list[tuple[str, PackageManager]] = [
     ("package-lock.json", PackageManager.NPM),
 ]
 
+
+def _parse_package_manager_field(field_val: str) -> tuple[Optional[PackageManager], Optional[str]]:
+    """
+    Parse packageManager string from package.json (e.g. 'yarn@3.8.0', 'pnpm@8.6.0+sha224...', 'npm@10.2.0', 'bun@1.1.0').
+    Returns (PackageManager, version_str) or (None, None).
+    """
+    if not field_val or not isinstance(field_val, str):
+        return None, None
+    parts = field_val.strip().split("@")
+    if not parts or not parts[0]:
+        return None, None
+    tool = parts[0].strip().lower()
+    version: Optional[str] = None
+    if len(parts) > 1 and parts[1]:
+        # Strip sha hash suffix if present
+        version = parts[1].split("+")[0].strip()
+
+    mapping = {
+        "npm": PackageManager.NPM,
+        "yarn": PackageManager.YARN,
+        "pnpm": PackageManager.PNPM,
+        "bun": PackageManager.BUN,
+    }
+    return mapping.get(tool), version
+
 # Scripts whose names suggest build/test/lint roles.
 _BUILD_SCRIPT_NAMES = {"build", "compile", "bundle", "prebuild", "postbuild"}
 _TEST_SCRIPT_NAMES = {"test", "test:unit", "test:e2e", "test:integration", "jest", "vitest"}
@@ -134,10 +159,19 @@ def scan_repository(repo_path: Path, rehearsal_id: str) -> RepositoryProfile:
     if "name" in raw:
         profile.name = raw["name"]
 
-    # Runtime from engines field
+    # Environment requirements
+    env_reqs: dict[str, str] = {}
     engines = raw.get("engines", {})
-    if "node" in engines:
-        node_ver = engines["node"].strip()
+    if isinstance(engines, dict):
+        for k, v in engines.items():
+            env_reqs[f"engines.{k}"] = str(v)
+    if "packageManager" in raw and isinstance(raw["packageManager"], str):
+        env_reqs["packageManager"] = str(raw["packageManager"])
+    profile.environment_requirements = env_reqs
+
+    # Runtime from engines field
+    if isinstance(engines, dict) and "node" in engines:
+        node_ver = str(engines["node"]).strip()
         profile.runtime = f"node@{node_ver}"
     else:
         # Look for .nvmrc / .node-version
@@ -150,19 +184,36 @@ def scan_repository(repo_path: Path, rehearsal_id: str) -> RepositoryProfile:
                     break
                 except OSError:
                     pass
+        if profile.runtime is None:
+            profile.runtime = "node"
 
-    # Package manager from lockfiles
+    # Package manager detection in required order:
+    # 1. package.json -> packageManager field when present
+    # 2. lockfile detection
+    # 3. sensible npm fallback
+    pm_from_field: Optional[PackageManager] = None
+    pm_version_from_field: Optional[str] = None
+    if "packageManager" in raw and isinstance(raw["packageManager"], str):
+        pm_from_field, pm_version_from_field = _parse_package_manager_field(raw["packageManager"])
+
     detected_lockfile: Optional[str] = None
+    pm_from_lockfile: Optional[PackageManager] = None
     for lockfile_name, pm in _LOCKFILE_PM:
         if (repo_path / lockfile_name).exists():
-            profile.package_manager = pm
             detected_lockfile = lockfile_name
+            pm_from_lockfile = pm
             break
-    if detected_lockfile is None and (repo_path / "package.json").exists():
-        # Default to npm if no lockfile found
-        profile.package_manager = PackageManager.NPM
 
     profile.lockfile = detected_lockfile
+
+    if pm_from_field is not None:
+        profile.package_manager = pm_from_field
+        profile.package_manager_version = pm_version_from_field
+    elif pm_from_lockfile is not None:
+        profile.package_manager = pm_from_lockfile
+    elif (repo_path / "package.json").exists():
+        # Sensible npm fallback
+        profile.package_manager = PackageManager.NPM
 
     # Dependencies
     profile.dependencies = {
@@ -178,6 +229,7 @@ def scan_repository(repo_path: Path, rehearsal_id: str) -> RepositoryProfile:
 
     # Scripts
     scripts: dict[str, str] = raw.get("scripts") or {}
+    profile.relevant_scripts = {str(k): str(v) for k, v in scripts.items()}
     for name, cmd in scripts.items():
         info = ScriptInfo(name=name, command=cmd)
         name_lower = name.lower()

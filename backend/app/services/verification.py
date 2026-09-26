@@ -26,55 +26,16 @@ from app.services.baseline import (
     TIMEOUT_INSTALL,
     TIMEOUT_LINT,
     TIMEOUT_TEST,
+    _find_script_name,
     _has_script,
+    _parse_test_summary,
     _pm_bin,
     _run,
     _which,
+    resolve_pm_command_prefix,
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _parse_test_summary(result: CommandResult) -> Optional[TestRunSummary]:
-    """
-    Attempt to parse a test summary from combined stdout+stderr.
-
-    Handles common Jest/Vitest patterns:
-      Tests: 176 passed, 8 failed, 184 total
-      Test Suites: 2 failed, 10 passed, 12 total
-    Falls back gracefully to None when not parseable.
-    """
-    import re
-
-    text = (result.stdout or "") + "\n" + (result.stderr or "")
-
-    # Jest style: "Tests: N passed, M failed, T total"
-    m = re.search(
-        r"Tests?:.*?(\d+)\s+passed.*?(\d+)\s+failed.*?(\d+)\s+total",
-        text,
-        re.IGNORECASE,
-    )
-    if m:
-        return TestRunSummary(
-            passed=int(m.group(1)),
-            failed=int(m.group(2)),
-            total=int(m.group(3)),
-        )
-
-    # Vitest style: "✓ N | × M" or "N passed | M failed"
-    m = re.search(r"(\d+)\s+passed.*?(\d+)\s+failed", text, re.IGNORECASE)
-    if m:
-        passed = int(m.group(1))
-        failed = int(m.group(2))
-        return TestRunSummary(passed=passed, failed=failed, total=passed + failed)
-
-    # Minimal: just total from "N tests"
-    m = re.search(r"(\d+)\s+tests?\s+(?:passed|run|complete)", text, re.IGNORECASE)
-    if m:
-        total = int(m.group(1))
-        return TestRunSummary(passed=total, failed=0, total=total)
-
-    return None
 
 
 def _compute_regressions(
@@ -91,9 +52,15 @@ def _compute_regressions(
         ver_step: Optional[CommandResult] = getattr(ver, step_name)
         base_step: Optional[CommandResult] = getattr(baseline, step_name)
 
-        if ver_step is None or ver_step.status == StepStatus.SKIPPED:
+        if ver_step is None or ver_step.status in (
+            StepStatus.SKIPPED,
+            StepStatus.SKIPPED_NOT_APPLICABLE,
+        ):
             continue
-        if base_step is None or base_step.status == StepStatus.SKIPPED:
+        if base_step is None or base_step.status in (
+            StepStatus.SKIPPED,
+            StepStatus.SKIPPED_NOT_APPLICABLE,
+        ):
             # No baseline for this step — treat as a new failure
             if ver_step.status == StepStatus.FAILED:
                 regressions.append(f"{step_name}: FAILED (no baseline)")
@@ -148,60 +115,64 @@ def run_verification(
     )
 
     pm = profile.package_manager
-    pm_bin = _pm_bin(pm)
+    pm_display = pm.value if pm != PackageManager.UNKNOWN else "npm"
+
+    prefix, error = resolve_pm_command_prefix(profile)
 
     # ── Install ───────────────────────────────────────────────────────────────
-    if _which(pm_bin) is not None:
-        install_cmd = ["npm", "install"] if pm == PackageManager.NPM else [pm_bin, "install"]
+    if prefix is not None:
+        install_cmd = [*prefix, "install"]
+        if pm == PackageManager.NPM:
+            install_cmd = [*prefix, "install"]
         ver.install = _run(install_cmd, twin_path, TIMEOUT_INSTALL, "install")
     else:
         ver.install = CommandResult(
             step="install",
-            command=f"{pm_bin} install",
+            command=f"{pm_display} install",
             exit_code=-1,
-            stderr=f"Package manager '{pm_bin}' not found.",
-            status=StepStatus.SKIPPED,
+            stderr=error or f"Package manager '{pm_display}' not found.",
+            status=StepStatus.ENVIRONMENT_UNAVAILABLE,
         )
 
-    install_ok = ver.install is None or ver.install.status in (
-        StepStatus.PASSED,
-        StepStatus.SKIPPED,
-    )
+    install_ok = ver.install is not None and ver.install.status == StepStatus.PASSED
 
-    # ── Build ─────────────────────────────────────────────────────────────────
-    if install_ok and _has_script(profile, "build") and _which(pm_bin) is not None:
-        ver.build = _run([pm_bin, "run", "build"], twin_path, TIMEOUT_BUILD, "build")
-    else:
-        ver.build = CommandResult(
-            step="build",
-            command=f"{pm_bin} run build",
-            exit_code=0,
-            status=StepStatus.SKIPPED,
-        )
+    # ── Build, Test, Lint ─────────────────────────────────────────────────────
+    steps_config = [
+        ("build", TIMEOUT_BUILD),
+        ("test", TIMEOUT_TEST),
+        ("lint", TIMEOUT_LINT),
+    ]
 
-    # ── Test ──────────────────────────────────────────────────────────────────
-    if install_ok and _has_script(profile, "test") and _which(pm_bin) is not None:
-        ver.test = _run([pm_bin, "run", "test"], twin_path, TIMEOUT_TEST, "test")
-        if ver.test:
-            ver.test_summary = _parse_test_summary(ver.test)
-    else:
-        ver.test = CommandResult(
-            step="test",
-            command=f"{pm_bin} run test",
-            exit_code=0,
-            status=StepStatus.SKIPPED,
-        )
+    for step_name, timeout in steps_config:
+        script_name = _find_script_name(profile, step_name)
 
-    # ── Lint ──────────────────────────────────────────────────────────────────
-    if install_ok and _has_script(profile, "lint") and _which(pm_bin) is not None:
-        ver.lint = _run([pm_bin, "run", "lint"], twin_path, TIMEOUT_LINT, "lint")
-    else:
-        ver.lint = CommandResult(
-            step="lint",
-            command=f"{pm_bin} run lint",
-            exit_code=0,
-            status=StepStatus.SKIPPED,
-        )
+        if not script_name:
+            step_result = CommandResult(
+                step=step_name,
+                command=f"{(prefix and ' '.join(prefix)) or pm_display} run {step_name}",
+                exit_code=0,
+                stderr=f"No '{step_name}' script found in package.json.",
+                status=StepStatus.SKIPPED_NOT_APPLICABLE,
+            )
+        elif not install_ok:
+            step_result = CommandResult(
+                step=step_name,
+                command=f"{(prefix and ' '.join(prefix)) or pm_display} run {script_name}",
+                exit_code=-1,
+                stderr="Install step failed or unavailable.",
+                status=StepStatus.NOT_RUN,
+            )
+        else:
+            step_result = _run(
+                [*prefix, "run", script_name],
+                twin_path,
+                timeout,
+                step_name,
+            )
+            if step_name == "test" and step_result:
+                ver.test_summary = _parse_test_summary(step_result)
+
+        setattr(ver, step_name, step_result)
 
     ver.compute_passed()
     _compute_regressions(ver, baseline)

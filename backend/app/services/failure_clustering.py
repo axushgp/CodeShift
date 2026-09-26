@@ -305,7 +305,12 @@ def extract_failure_clusters(
         result: Optional[CommandResult] = getattr(verification, step_name)
         if result is None:
             continue
-        if result.status in (StepStatus.PASSED, StepStatus.SKIPPED, StepStatus.NOT_RUN):
+        if result.status in (
+            StepStatus.PASSED,
+            StepStatus.SKIPPED,
+            StepStatus.SKIPPED_NOT_APPLICABLE,
+            StepStatus.NOT_RUN,
+        ):
             continue
         cluster = parser(result)
         clusters.append(cluster)

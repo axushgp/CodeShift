@@ -71,6 +71,13 @@ class RepositoryProfile(BaseModel):
         default=None, description="e.g. 'node@20', 'python@3.12'"
     )
     package_manager: PackageManager = Field(default=PackageManager.UNKNOWN)
+    package_manager_version: Optional[str] = Field(
+        default=None, description="e.g. '8.19.0' or '1.22.19' if specified or detected"
+    )
+    environment_requirements: dict[str, str] = Field(
+        default_factory=dict,
+        description="Declared environment requirements, e.g. engines and packageManager",
+    )
     framework: Optional[str] = Field(
         default=None, description="e.g. 'react', 'nextjs', 'express', 'fastapi'"
     )
@@ -89,6 +96,10 @@ class RepositoryProfile(BaseModel):
     )
 
     # Scripts
+    relevant_scripts: dict[str, str] = Field(
+        default_factory=dict,
+        description="All relevant scripts from package manifest {name: command}",
+    )
     build_scripts: list[ScriptInfo] = Field(default_factory=list)
     test_scripts: list[ScriptInfo] = Field(default_factory=list)
     lint_scripts: list[ScriptInfo] = Field(default_factory=list)

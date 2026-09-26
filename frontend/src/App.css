@@ -412,6 +412,16 @@ body {
   color: var(--cs-error);
 }
 
+.cs-baseline__badge--unavailable {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.cs-baseline__badge--not-applicable {
+  background: var(--cs-border);
+  color: var(--cs-text-muted);
+}
+
 .cs-baseline__steps {
   display: flex;
   flex-direction: column;
@@ -434,6 +444,7 @@ body {
 .cs-step--passed { border-left: 3px solid var(--cs-success); }
 .cs-step--failed { border-left: 3px solid var(--cs-error); }
 .cs-step--skipped { border-left: 3px solid var(--cs-border); }
+.cs-step--unavailable { border-left: 3px solid #f59e0b; }
 
 .cs-step__header {
   display: flex;
@@ -461,6 +472,7 @@ body {
 .cs-step__status--passed { background: #dcfce7; color: var(--cs-success); }
 .cs-step__status--failed { background: #fee2e2; color: var(--cs-error); }
 .cs-step__status--skipped { background: var(--cs-border); color: var(--cs-text-muted); }
+.cs-step__status--unavailable { background: #fef3c7; color: #b45309; }
 .cs-step__status--not-run { background: var(--cs-border); color: var(--cs-text-muted); }
 
 .cs-step__cmd {

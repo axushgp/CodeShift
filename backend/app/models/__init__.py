@@ -40,6 +40,7 @@ from app.models.agent_task import (
     ImplementationStep,
     VerificationSummary,
 )
+from app.models.demo import DemoManifest
 
 __all__ = [
     # Rehearsal
@@ -83,4 +84,7 @@ __all__ = [
     "RepositoryContext",
     "ImplementationStep",
     "VerificationSummary",
+    # Demo Manifest
+    "DemoManifest",
 ]
+
