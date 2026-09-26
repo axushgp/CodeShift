@@ -22,6 +22,7 @@ class StepStatus(str, Enum):
 
     PASSED = "PASSED"
     FAILED = "FAILED"
+    TIMEOUT = "TIMEOUT"
     SKIPPED = "SKIPPED"
     SKIPPED_NOT_APPLICABLE = "SKIPPED_NOT_APPLICABLE"
     ENVIRONMENT_UNAVAILABLE = "ENVIRONMENT_UNAVAILABLE"
@@ -33,6 +34,7 @@ class BaselineStatus(str, Enum):
 
     PASS = "PASS"
     FAIL = "FAIL"
+    TIMEOUT = "TIMEOUT"
     SKIPPED_NOT_APPLICABLE = "SKIPPED_NOT_APPLICABLE"
     ENVIRONMENT_UNAVAILABLE = "ENVIRONMENT_UNAVAILABLE"
 
@@ -80,7 +82,13 @@ class BaselineResult(BaseModel):
     # Overall baseline status
     status: BaselineStatus = Field(
         default=BaselineStatus.FAIL,
-        description="Overall baseline status: PASS, FAIL, SKIPPED_NOT_APPLICABLE, ENVIRONMENT_UNAVAILABLE",
+        description="Overall baseline status: PASS, FAIL, TIMEOUT, SKIPPED_NOT_APPLICABLE, ENVIRONMENT_UNAVAILABLE",
+    )
+
+    # Active step in progress (e.g. 'install', 'build', 'test', 'lint')
+    active_step: Optional[str] = Field(
+        default=None,
+        description="Name of the currently running baseline step, or None if idle/completed",
     )
 
     # Step results
@@ -108,7 +116,8 @@ class BaselineResult(BaseModel):
         Recompute the passed flag and overall status from individual step results.
 
         Distinguishes clearly between:
-          - PASS: All applicable executed steps passed (at least one passed, none failed/unavailable).
+          - PASS: All applicable executed steps passed (at least one passed, none failed/unavailable/timed out).
+          - TIMEOUT: Any executed step timed out.
           - FAIL: Any applicable executed step failed.
           - SKIPPED_NOT_APPLICABLE: No steps were applicable.
           - ENVIRONMENT_UNAVAILABLE: Package manager or execution environment was missing.
@@ -117,6 +126,11 @@ class BaselineResult(BaseModel):
 
         if any(s.status == StepStatus.ENVIRONMENT_UNAVAILABLE for s in steps):
             self.status = BaselineStatus.ENVIRONMENT_UNAVAILABLE
+            self.passed = False
+            return False
+
+        if any(s.status == StepStatus.TIMEOUT for s in steps):
+            self.status = BaselineStatus.TIMEOUT
             self.passed = False
             return False
 

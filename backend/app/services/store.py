@@ -71,6 +71,7 @@ def update_rehearsal_stage(
     stage: RehearsalStage,
     status: RehearsalStatus = RehearsalStatus.RUNNING,
     error_message: Optional[str] = None,
+    active_operation: Optional[str] = None,
 ) -> Optional[Rehearsal]:
     rehearsal = load_rehearsal(rehearsal_id)
     if rehearsal is None:
@@ -78,9 +79,12 @@ def update_rehearsal_stage(
     rehearsal.stage = stage
     rehearsal.status = status
     rehearsal.error_message = error_message
-    rehearsal.touch()
     if status in (RehearsalStatus.COMPLETE, RehearsalStatus.FAILED):
         rehearsal.completed_at = datetime.now(timezone.utc)
+        rehearsal.active_operation = None
+    else:
+        rehearsal.active_operation = active_operation
+    rehearsal.touch()
     save_rehearsal(rehearsal)
     return rehearsal
 

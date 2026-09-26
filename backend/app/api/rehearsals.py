@@ -18,7 +18,7 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Respo
 from pydantic import BaseModel
 
 from app.models.agent_task import AgentTaskSpec
-from app.models.baseline import BaselineResult, BaselineStatus
+from app.models.baseline import BaselineResult, BaselineStatus, StepStatus
 from app.models.migration_plan import MigrationPlan
 from app.models.rehearsal import (
     Rehearsal,
@@ -522,8 +522,24 @@ def _run_intake_pipeline(
         store.save_repo_profile(profile)
 
         # ── Baseline ─────────────────────────────────────────────────────────
-        store.update_rehearsal_stage(rehearsal_id, RehearsalStage.BASELINING)
-        baseline = baseline_svc.run_baseline(workspace, profile, rehearsal_id)
+        def handle_baseline_step(step_name: str, description: str) -> None:
+            store.update_rehearsal_stage(
+                rehearsal_id,
+                RehearsalStage.BASELINING,
+                active_operation=description,
+            )
+
+        store.update_rehearsal_stage(
+            rehearsal_id,
+            RehearsalStage.BASELINING,
+            active_operation="Initializing baseline environment...",
+        )
+        baseline = baseline_svc.run_baseline(
+            workspace,
+            profile,
+            rehearsal_id,
+            on_step_start=handle_baseline_step,
+        )
         store.save_baseline(baseline)
 
         if baseline.status == BaselineStatus.ENVIRONMENT_UNAVAILABLE:
@@ -537,8 +553,34 @@ def _run_intake_pipeline(
             )
             return
 
+        if baseline.status == BaselineStatus.TIMEOUT:
+            error_msg = f"Baseline execution timed out: {baseline.notes or 'Command exceeded timeout limit'}"
+            logger.warning("Rehearsal %s baseline timed out: %s", rehearsal_id, error_msg)
+            store.update_rehearsal_stage(
+                rehearsal_id,
+                RehearsalStage.FAILED,
+                status=RehearsalStatus.FAILED,
+                error_message=error_msg,
+            )
+            return
+
+        if baseline.install and baseline.install.status in (StepStatus.FAILED, StepStatus.TIMEOUT):
+            error_msg = f"Baseline dependency install failed: {baseline.install.stderr or 'Package installation failed'}"
+            logger.warning("Rehearsal %s baseline install failed: %s", rehearsal_id, error_msg)
+            store.update_rehearsal_stage(
+                rehearsal_id,
+                RehearsalStage.FAILED,
+                status=RehearsalStatus.FAILED,
+                error_message=error_msg,
+            )
+            return
+
         # ── Migration Analysis ───────────────────────────────────────────────
-        store.update_rehearsal_stage(rehearsal_id, RehearsalStage.ANALYZING)
+        store.update_rehearsal_stage(
+            rehearsal_id,
+            RehearsalStage.ANALYZING,
+            active_operation="Analyzing migration changes...",
+        )
         rehearsal = store.load_rehearsal(rehearsal_id)
         if not rehearsal:
             return

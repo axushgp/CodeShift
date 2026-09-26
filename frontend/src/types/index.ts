@@ -85,6 +85,7 @@ export interface Rehearsal {
   updated_at: string
   completed_at?: string
   error_message?: string
+  active_operation?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -152,6 +153,7 @@ export interface RepositoryProfile {
 export type StepStatus =
   | 'PASSED'
   | 'FAILED'
+  | 'TIMEOUT'
   | 'SKIPPED'
   | 'SKIPPED_NOT_APPLICABLE'
   | 'ENVIRONMENT_UNAVAILABLE'
@@ -160,6 +162,7 @@ export type StepStatus =
 export type BaselineStatus =
   | 'PASS'
   | 'FAIL'
+  | 'TIMEOUT'
   | 'SKIPPED_NOT_APPLICABLE'
   | 'ENVIRONMENT_UNAVAILABLE'
 
@@ -184,6 +187,7 @@ export interface TestRunSummary {
 export interface BaselineResult {
   rehearsal_id: string
   status?: BaselineStatus
+  active_step?: string
   install?: CommandResult
   build?: CommandResult
   test?: CommandResult
@@ -370,4 +374,19 @@ export interface ApiError {
   error: string
   detail: string
 }
+
+// ---------------------------------------------------------------------------
+// Quick Start Demo Manifest
+// ---------------------------------------------------------------------------
+
+export interface DemoManifest {
+  id: string
+  name: string
+  repository_url: string
+  description: string
+  package: string
+  source_version: string
+  target_version: string
+}
+
 

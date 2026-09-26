@@ -108,3 +108,18 @@ export function getAgentPackDownloadUrl(rehearsalId: string): string {
   const base = BASE_URL.replace(/\/+$/, '')
   return `${base}/api/rehearsals/${rehearsalId}/agent-pack/download`
 }
+
+// ── Demo catalog endpoints ───────────────────────────────────────────────────
+
+export function listDemos(): Promise<import('../types').DemoManifest[]> {
+  return apiClient.get<import('../types').DemoManifest[]>('/api/demos')
+}
+
+export function getDemo(demoId: string): Promise<import('../types').DemoManifest> {
+  return apiClient.get<import('../types').DemoManifest>(`/api/demos/${demoId}`)
+}
+
+export function launchDemo(demoId: string): Promise<RehearsalResponse> {
+  return apiClient.post<RehearsalResponse>(`/api/demos/${demoId}/launch`)
+}
+

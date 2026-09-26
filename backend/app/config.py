@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     watsonx_url: str = "https://us-south.ml.cloud.ibm.com"
     watsonx_model_id: str = "ibm/granite-4-h-small"
 
+    # Baseline command execution timeouts (seconds)
+    baseline_install_timeout: int = 180
+    baseline_build_timeout: int = 120
+    baseline_test_timeout: int = 120
+    baseline_lint_timeout: int = 120
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

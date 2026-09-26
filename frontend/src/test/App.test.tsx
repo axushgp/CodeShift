@@ -41,6 +41,48 @@ vi.mock('../api/client', () => ({
     repo_profile: null,
     baseline: null,
   }),
+  listDemos: vi.fn().mockResolvedValue([
+    {
+      id: 'howtotax',
+      name: 'HowToTax',
+      repository_url: 'https://github.com/taepras/howtotax',
+      description: 'Thai personal income tax calculation web application built with React 17',
+      package: 'react',
+      source_version: '17.0.2',
+      target_version: '18.0.0',
+    },
+    {
+      id: 'cocos-can-i-use-npm',
+      name: 'Cocos Can I Use npm',
+      repository_url: 'https://github.com/cocos/cocos-can-i-use-npm',
+      description: 'Cocos Creator npm package compatibility checker built with React 17',
+      package: 'react',
+      source_version: '17.0.2',
+      target_version: '18.0.0',
+    },
+    {
+      id: 'observablehq-plot-cra-example',
+      name: 'Observable Plot CRA Example',
+      repository_url: 'https://github.com/observablehq/plot-create-react-app-example',
+      description: 'Observable Plot React integration example application using React 17',
+      package: 'react',
+      source_version: '17.0.2',
+      target_version: '18.0.0',
+    },
+  ]),
+  launchDemo: vi.fn().mockResolvedValue({
+    rehearsal: {
+      id: 'demo-rehearsal-id',
+      status: 'RUNNING',
+      stage: 'SCANNING',
+      repository: { url: 'https://github.com/taepras/howtotax', is_demo: true },
+      target_upgrade: { package: 'react', from_version: '17.0.2', to_version: '18.0.0' },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    repo_profile: null,
+    baseline: null,
+  }),
 }))
 
 describe('App', () => {

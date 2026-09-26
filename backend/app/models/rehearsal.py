@@ -118,6 +118,10 @@ class Rehearsal(BaseModel):
         default=None,
         description="Set when status is FAILED",
     )
+    active_operation: Optional[str] = Field(
+        default=None,
+        description="Currently active operation or command description for UI progress",
+    )
 
     def touch(self) -> None:
         """Update the updated_at timestamp."""
