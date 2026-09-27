@@ -152,3 +152,7 @@ export function launchDemo(demoId: string): Promise<RehearsalResponse> {
   return apiClient.post<RehearsalResponse>(`/api/demos/${demoId}/launch`)
 }
 
+export function approveRehearsal(rehearsalId: string): Promise<RehearsalResponse> {
+  return apiClient.post<RehearsalResponse>(`/api/rehearsals/${rehearsalId}/approve`)
+}
+

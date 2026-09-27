@@ -19,6 +19,7 @@ import { QuickStartSection } from './components/QuickStartSection'
 import { ResultsArea } from './components/ResultsArea'
 import {
   ApiClientError,
+  approveRehearsal,
   getRehearsalStatus,
   launchDemo,
   startRehearsalFromUrl,
@@ -200,6 +201,40 @@ function App() {
     setState(INITIAL_STATE)
   }
 
+  const [isApproving, setIsApproving] = useState(false)
+
+  async function handleApproveRehearsal() {
+    if (!state.rehearsal?.id) return
+    setIsApproving(true)
+    try {
+      const data = await approveRehearsal(state.rehearsal.id)
+      setState((prev) => ({
+        ...prev,
+        rehearsal: data.rehearsal,
+        profile: data.repo_profile ?? prev.profile,
+        baseline: data.baseline ?? prev.baseline,
+        migrationPlan: data.migration_plan ?? prev.migrationPlan,
+        twinResult: data.twin_result ?? prev.twinResult,
+        verificationRun: data.verification_run ?? prev.verificationRun,
+        agentTaskSpec: data.agent_task_spec ?? prev.agentTaskSpec,
+        hasAgentPack: data.has_agent_pack ?? prev.hasAgentPack,
+        errorMessage: null,
+        isLoading: false,
+      }))
+    } catch (err) {
+      let msg = 'Failed to approve rehearsal.'
+      if (err instanceof ApiClientError) {
+        const body = err.body as Record<string, unknown> | null
+        msg = (body?.detail as string) || msg
+      } else if (err instanceof Error) {
+        msg = err.message
+      }
+      setState((prev) => ({ ...prev, errorMessage: msg }))
+    } finally {
+      setIsApproving(false)
+    }
+  }
+
   const currentStage: RehearsalStage = state.rehearsal?.stage ?? 'INTAKE'
   const currentStatus: RehearsalStatus =
     state.rehearsal?.status ?? (state.isLoading ? 'RUNNING' : 'PENDING')
@@ -315,6 +350,8 @@ function App() {
               errorMessage={state.errorMessage ?? undefined}
               activeOperation={state.rehearsal?.active_operation}
               baseline={state.baseline}
+              onApprove={handleApproveRehearsal}
+              isApproving={isApproving}
             />
           </section>
         )}
@@ -346,6 +383,8 @@ function App() {
             agentTaskSpec={state.agentTaskSpec}
             hasAgentPack={state.hasAgentPack}
             isLoading={state.isLoading}
+            onApprove={handleApproveRehearsal}
+            isApproving={isApproving}
           />
         </section>
       </main>

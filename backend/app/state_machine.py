@@ -65,10 +65,10 @@ _TRANSITIONS: dict[RehearsalStage, list[RehearsalStage]] = {
         RehearsalStage.REQUIRES_HUMAN_REVIEW,
         RehearsalStage.FAILED,
     ],
-    # Terminal stages — no outgoing transitions
+    # Terminal stages — REQUIRES_HUMAN_REVIEW can be acknowledged/approved to COMPLETE
     RehearsalStage.COMPLETE: [],
     RehearsalStage.FAILED: [],
-    RehearsalStage.REQUIRES_HUMAN_REVIEW: [],
+    RehearsalStage.REQUIRES_HUMAN_REVIEW: [RehearsalStage.COMPLETE, RehearsalStage.FAILED],
 }
 
 # Stages that map to RUNNING status

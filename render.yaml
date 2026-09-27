@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: codeshift-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /api/health
+    envVars:
+      - key: CODESHIFT_ENVIRONMENT
+        value: production
+      - key: CODESHIFT_CORS_ORIGINS
+        value: "*"
+      - key: CODESHIFT_WATSONX_API_KEY
+        sync: false
+      - key: CODESHIFT_WATSONX_PROJECT_ID
+        sync: false
+      - key: CODESHIFT_WATSONX_URL
+        value: "https://us-south.ml.cloud.ibm.com"
+      - key: CODESHIFT_WATSONX_MODEL_ID
+        value: "ibm/granite-4-h-small"
+      - key: BASELINE_INSTALL_TIMEOUT
+        value: "300"
+      - key: BASELINE_BUILD_TIMEOUT
+        value: "300"
+      - key: BASELINE_TEST_TIMEOUT
+        value: "180"
+      - key: BASELINE_LINT_TIMEOUT
+        value: "180"

@@ -1028,3 +1028,37 @@ async def get_implementation_prompt(rehearsal_id: str) -> ImplementationPromptRe
     prompt = pack_files.get("implementation-prompt.md", "")
     return ImplementationPromptResponse(rehearsal_id=rehearsal_id, prompt=prompt)
 
+
+@router.post("/{rehearsal_id}/approve", response_model=RehearsalResponse)
+async def approve_rehearsal(rehearsal_id: str) -> RehearsalResponse:
+    """
+    Acknowledge and approve a rehearsal in REQUIRES_HUMAN_REVIEW (or any review state),
+    transitioning it to COMPLETE with verified status.
+    """
+    rehearsal = store.load_rehearsal(rehearsal_id)
+    if rehearsal is None:
+        raise HTTPException(status_code=404, detail=f"Rehearsal '{rehearsal_id}' not found.")
+
+    store.update_rehearsal_stage(
+        rehearsal_id,
+        stage=RehearsalStage.COMPLETE,
+        status=RehearsalStatus.COMPLETE,
+    )
+
+    ver_run = store.load_latest_verification_run(rehearsal_id)
+    if ver_run:
+        ver_run.requires_human_review = False
+        ver_run.passed = True
+        ver_run.summary = "Rehearsal approved & verified after human review."
+        store.save_verification_run(ver_run)
+
+    _finalize_and_save_agent_pack(
+        rehearsal_id,
+        RehearsalStage.COMPLETE,
+        RehearsalStatus.COMPLETE,
+    )
+
+    logger.info("Rehearsal %s approved by user — transitioned to COMPLETE", rehearsal_id)
+    return await get_rehearsal(rehearsal_id)
+
+

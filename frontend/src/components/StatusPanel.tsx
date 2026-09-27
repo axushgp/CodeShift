@@ -22,6 +22,8 @@ interface StatusPanelProps {
   errorMessage?: string
   activeOperation?: string | null
   baseline?: BaselineResult | null
+  onApprove?: () => void | Promise<void>
+  isApproving?: boolean
 }
 
 const STAGE_LABELS: Record<RehearsalStage, string> = {
@@ -180,11 +182,13 @@ export function StatusPanel({
   errorMessage,
   activeOperation,
   baseline,
+  onApprove,
+  isApproving = false,
 }: StatusPanelProps) {
   const isRunning = status === 'RUNNING'
   const isFailed = status === 'FAILED'
   const isComplete = status === 'COMPLETE'
-  const isReview = status === 'REQUIRES_HUMAN_REVIEW'
+  const isReview = status === 'REQUIRES_HUMAN_REVIEW' || stage === 'REQUIRES_HUMAN_REVIEW'
 
   const [now, setNow] = useState<number>(Date.now())
   const [snippetIndex, setSnippetIndex] = useState<number>(0)
@@ -494,6 +498,47 @@ export function StatusPanel({
                 }}
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Human Review Action Banner ────────────────────────────────────── */}
+      {isReview && (
+        <div
+          className="rounded border border-amber-800/80 bg-amber-950/25 p-3.5 space-y-2.5 font-mono text-xs"
+          data-testid="review-action-banner"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2 text-amber-300 font-semibold text-sm">
+                <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                <span>Review Recommended — Migration Rehearsed</span>
+              </div>
+              <p className="text-zinc-300 text-xs font-normal">
+                Rehearsal produced actionable findings or non-blocking anomalies. You can acknowledge and mark the migration complete.
+              </p>
+            </div>
+            {onApprove && (
+              <button
+                type="button"
+                data-testid="btn-approve-rehearsal"
+                disabled={isApproving}
+                onClick={onApprove}
+                className="inline-flex items-center space-x-2 rounded border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              >
+                {isApproving ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                    <span>Marking Complete...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                    <span>Approve & Complete Migration</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       )}

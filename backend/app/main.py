@@ -39,14 +39,15 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
     )
 
-    # CORS — permissive in development, locked down for production
-    origins = (
-        ["*"] if settings.environment == "development" else ["http://localhost:5173"]
-    )
+    # CORS — configurable via CODESHIFT_CORS_ORIGINS (defaults to * for easy deployment)
+    if settings.cors_origins == "*" or settings.environment == "development":
+        origins = ["*"]
+    else:
+        origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
-        allow_credentials=True,
+        allow_credentials=True if origins != ["*"] else False,
         allow_methods=["*"],
         allow_headers=["*"],
     )

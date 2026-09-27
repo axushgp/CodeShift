@@ -54,6 +54,8 @@ export interface ResultsAreaProps {
   agentTaskSpec?: AgentTaskSpec | null
   hasAgentPack?: boolean
   isLoading?: boolean
+  onApprove?: () => void | Promise<void>
+  isApproving?: boolean
   /** Backward-compatibility prop */
   findings?: MigrationFinding[]
 }
@@ -68,6 +70,8 @@ export function ResultsArea({
   agentTaskSpec,
   hasAgentPack = false,
   isLoading = false,
+  onApprove,
+  isApproving = false,
   findings: directFindings,
 }: ResultsAreaProps) {
   const [activeTab, setActiveTab] = useState<ResultsTab>('overview')
@@ -301,6 +305,17 @@ export function ResultsArea({
 
               {/* Quick Jump CTA */}
               <div className="flex items-center space-x-2 shrink-0">
+                {requiresReview && onApprove && (
+                  <button
+                    type="button"
+                    data-testid="btn-verdict-approve"
+                    disabled={isApproving}
+                    onClick={onApprove}
+                    className="rounded bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-white transition flex items-center space-x-1.5 shadow-sm disabled:opacity-50"
+                  >
+                    <span>✓ Approve & Mark Verified</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setActiveTab('repository')}
