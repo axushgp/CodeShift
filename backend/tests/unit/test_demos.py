@@ -15,13 +15,14 @@ class TestDemoCatalog:
         assert len(demos) == 3
         ids = [d.id for d in demos]
         assert "howtotax" in ids
-        assert "cocos-can-i-use-npm" in ids
+        assert "howtotax" in ids
+        assert "datocms-plugin-iframe-tab" in ids
         assert "observablehq-plot-cra-example" in ids
 
     def test_demo_manifest_fields_and_urls(self) -> None:
         expected_urls = {
             "howtotax": "https://github.com/taepras/howtotax",
-            "cocos-can-i-use-npm": "https://github.com/cocos/cocos-can-i-use-npm",
+            "datocms-plugin-iframe-tab": "https://github.com/thebuilder/datocms-plugin-iframe-tab",
             "observablehq-plot-cra-example": "https://github.com/observablehq/plot-create-react-app-example",
         }
         demos = demos_svc.get_all_demos()
@@ -53,15 +54,15 @@ class TestDemoEndpoints:
         assert len(data) == 3
         urls = [d["repository_url"] for d in data]
         assert "https://github.com/taepras/howtotax" in urls
-        assert "https://github.com/cocos/cocos-can-i-use-npm" in urls
+        assert "https://github.com/thebuilder/datocms-plugin-iframe-tab" in urls
         assert "https://github.com/observablehq/plot-create-react-app-example" in urls
 
     def test_get_demo_by_id(self, client: TestClient) -> None:
-        resp = client.get("/api/demos/cocos-can-i-use-npm")
+        resp = client.get("/api/demos/datocms-plugin-iframe-tab")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["id"] == "cocos-can-i-use-npm"
-        assert data["repository_url"] == "https://github.com/cocos/cocos-can-i-use-npm"
+        assert data["id"] == "datocms-plugin-iframe-tab"
+        assert data["repository_url"] == "https://github.com/thebuilder/datocms-plugin-iframe-tab"
         assert data["package"] == "react"
 
     def test_get_demo_not_found(self, client: TestClient) -> None:
