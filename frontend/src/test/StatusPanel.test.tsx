@@ -1,7 +1,7 @@
 /**
  * Tests for the StatusPanel component.
  */
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { StatusPanel } from '../components/StatusPanel'
 import type { BaselineResult } from '../types'
 
@@ -57,19 +57,20 @@ describe('StatusPanel', () => {
     )
 
     expect(screen.getByTestId('status-stage')).toHaveTextContent('Building with react-scripts...')
-    expect(screen.getByTestId('baseline-sequence')).toBeInTheDocument()
-    expect(screen.getByText('Build')).toBeInTheDocument()
-    expect(screen.getByText('Install')).toBeInTheDocument()
+    const sequence = screen.getByTestId('baseline-sequence')
+    expect(sequence).toBeInTheDocument()
+    expect(within(sequence).getByText('Build')).toBeInTheDocument()
+    expect(within(sequence).getByText('Install')).toBeInTheDocument()
     expect(screen.getByTestId('status-elapsed')).toHaveTextContent('Elapsed: 00:10')
   })
 
-  it('displays soft waiting message and rotating facts after delay', () => {
+  it('displays soft waiting message and rotating facts after 10 seconds for any running process', () => {
     const baseline: BaselineResult = {
       rehearsal_id: 'reh-2',
       active_step: 'install',
       active_operation: 'Installing dependencies with Yarn...',
       active_timeout: 300,
-      active_started_at: Math.floor(Date.now() / 1000) - 50, // 50 seconds elapsed (> 35s)
+      active_started_at: Math.floor(Date.now() / 1000) - 12, // 12 seconds elapsed (>= 10s)
       passed: false,
     }
 
@@ -87,6 +88,29 @@ describe('StatusPanel', () => {
     expect(screen.getByText(/cold dependency\/build environment/)).toBeInTheDocument()
     expect(screen.getByTestId('rotating-facts-panel')).toBeInTheDocument()
     expect(screen.getByTestId('rotating-category-badge')).toHaveTextContent(/WHY CODESHIFT|WHILE YOU WAIT/)
+    expect(screen.getByTestId('rotating-progress-bar')).toBeInTheDocument()
+  })
+
+  it('does not display waiting quotes when process has run for less than 10 seconds', () => {
+    const baseline: BaselineResult = {
+      rehearsal_id: 'reh-2b',
+      active_step: 'install',
+      active_operation: 'Installing dependencies...',
+      active_timeout: 300,
+      active_started_at: Math.floor(Date.now() / 1000) - 5, // 5 seconds elapsed (< 10s)
+      passed: false,
+    }
+
+    render(
+      <StatusPanel
+        stage="BASELINING"
+        status="RUNNING"
+        activeOperation="Installing dependencies..."
+        baseline={baseline}
+      />
+    )
+
+    expect(screen.queryByTestId('waiting-panel')).not.toBeInTheDocument()
   })
 
   it('displays explicit TIMEOUT state when command exceeds timeout limit', () => {

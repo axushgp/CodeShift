@@ -61,13 +61,10 @@ vi.mock('../api/client', () => ({
       target_version: '18.0.0',
     },
     {
-      id: 'observablehq-plot-cra-example',
-      name: 'Observable Plot CRA Example',
-      repository_url: 'https://github.com/observablehq/plot-create-react-app-example',
-      description: 'Observable Plot React integration example application using React 17',
-      package: 'react',
-      source_version: '17.0.2',
-      target_version: '18.0.0',
+      id: 'game-rock-paper-scissors',
+      name: 'Rock Paper Scissors',
+      repository_url: 'https://github.com/masajid390/game-rock-paper-scissors',
+      description: 'Rock Paper Scissors interactive game application',
     },
   ]),
   launchDemo: vi.fn().mockResolvedValue({

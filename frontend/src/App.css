@@ -116,6 +116,15 @@ body {
   to { transform: rotate(360deg); }
 }
 
+@keyframes snippetProgress {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
 .cs-status__error {
   width: 100%;
   margin: 0.25rem 0 0;

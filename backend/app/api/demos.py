@@ -60,9 +60,9 @@ async def launch_demo_rehearsal(
     rehearsal = Rehearsal(
         repository=RepositorySource(url=demo.repository_url, is_demo=True),
         target_upgrade=TargetUpgrade(
-            package=demo.package,
+            package=demo.package or "unknown",
             from_version=demo.source_version,
-            to_version=demo.target_version,
+            to_version=demo.target_version or "unknown",
         ),
         status=RehearsalStatus.RUNNING,
         stage=RehearsalStage.INTAKE,

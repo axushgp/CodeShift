@@ -115,9 +115,15 @@ export function QuickStartSection({
 
               <div className="flex items-center justify-between sm:justify-end space-x-4 shrink-0">
                 <div className="text-xs font-mono text-zinc-400">
-                  <span>{demo.package} {demo.source_version}</span>
-                  <span className="mx-1.5 text-zinc-600">&rarr;</span>
-                  <span className="text-zinc-200">{demo.target_version}</span>
+                  {demo.package && demo.target_version ? (
+                    <>
+                      <span>{demo.package} {demo.source_version}</span>
+                      <span className="mx-1.5 text-zinc-600">&rarr;</span>
+                      <span className="text-zinc-200">{demo.target_version}</span>
+                    </>
+                  ) : (
+                    <span className="text-zinc-400">Auto-Detect</span>
+                  )}
                 </div>
 
                 <button

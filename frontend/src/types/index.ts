@@ -432,10 +432,10 @@ export interface DemoManifest {
   id: string
   name: string
   repository_url: string
-  description: string
-  package: string
-  source_version: string
-  target_version: string
+  description?: string
+  package?: string
+  source_version?: string
+  target_version?: string
 }
 
 
