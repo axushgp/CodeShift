@@ -11,17 +11,17 @@ The project must never exceed 40 Bobcoins.
 
 ## Planned Sessions
 
-| Session | Objective | Planned | Actual | Remaining |
-|---|---|---:|---:|---:|
-| Initial | Phase 0 setup | 0 | 0 | 40 |
-| 01 | Foundation + Test Infrastructure | 4 | TBD | TBD |
-| 02 | Repository Intake + Baseline | 5 | TBD | TBD |
-| 03 | Migration Intelligence + Watsonx | 6 | TBD | TBD |
-| 04 | Twin + Migration Execution | 5 | TBD | TBD |
-| 05 | Verification + Failure Recovery | 6 | TBD | TBD |
-| 06 | AgentTaskSpec + Agent Pack | 4 | TBD | TBD |
-| 07 | Full Integration + E2E + Demo | 4 | TBD | TBD |
-| Reserve | Critical blockers only | 6 | TBD | TBD |
+| Session | Objective | Planned |
+|---|---|---:|
+| Initial | Phase 0 setup | 0 |
+| 01 | Foundation + Test Infrastructure | 4 |
+| 02 | Repository Intake + Baseline | 5 |
+| 03 | Migration Intelligence + Watsonx | 6 |
+| 04 | Twin + Migration Execution | 5 |
+| 05 | Verification + Failure Recovery | 6 |
+| 06 | AgentTaskSpec + Agent Pack | 4 |
+| 07 | Full Integration + E2E + Demo | 4 |
+| Reserve | Critical blockers only | 6 |
 
 ---
 
@@ -66,6 +66,4 @@ Each session directory should contain, as applicable:
 ## Running Totals
 
 Starting budget: 40
-Consumed: 0
-Remaining: 40
 Reserve remaining: 6
