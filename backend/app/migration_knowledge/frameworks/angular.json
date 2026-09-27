@@ -1,0 +1,40 @@
+{
+  "id": "angular",
+  "name": "Angular",
+  "package": "@angular/core",
+  "ecosystem": "node",
+  "knowledge_updated": "2026-09",
+  "known_versions": [
+    "12.x",
+    "13.x",
+    "14.x",
+    "15.x",
+    "16.x"
+  ],
+  "latest_known_version": "16.x",
+  "recommended_target": "14.0.0",
+  "migration_paths": [
+    {
+      "from": "12.x",
+      "to": "13.x",
+      "target_version": "13.0.0",
+      "label": "Angular 13.x",
+      "badge": "Step 1",
+      "is_recommended": false,
+      "has_certified_recipe": false,
+      "recipe": null,
+      "description": "Incremental upgrade from Angular 12 to 13 (AI-assisted analysis)"
+    },
+    {
+      "from": "12.x",
+      "to": "14.x",
+      "target_version": "14.0.0",
+      "label": "Angular 14.x",
+      "badge": "Recommended Step",
+      "is_recommended": true,
+      "has_certified_recipe": false,
+      "recipe": null,
+      "description": "Upgrade to typed forms and standalone components (AI-assisted analysis)"
+    }
+  ]
+}

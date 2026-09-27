@@ -1,0 +1,27 @@
+{
+  "id": "vue",
+  "name": "Vue.js",
+  "package": "vue",
+  "ecosystem": "node",
+  "knowledge_updated": "2026-09",
+  "known_versions": [
+    "2.6.x",
+    "2.7.x",
+    "3.x"
+  ],
+  "latest_known_version": "3.x",
+  "recommended_target": "3.3.0",
+  "migration_paths": [
+    {
+      "from": "2.x",
+      "to": "3.x",
+      "target_version": "3.3.0",
+      "label": "Vue 3.x",
+      "badge": "AI-Assisted",
+      "is_recommended": true,
+      "has_certified_recipe": false,
+      "recipe": null,
+      "description": "Migrate Vue 2 to Vue 3 composition API and createApp (AI-assisted analysis; human review required)"
+    }
+  ]
+}

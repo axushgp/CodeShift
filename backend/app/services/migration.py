@@ -61,12 +61,10 @@ class MigrationAnalysisError(Exception):
 
 def _load_knowledge(package: str, from_version: Optional[str], to_version: str) -> Optional[dict]:
     """
-    Return the best-matching migration knowledge dict, or None if none found.
+    Return the best-matching migration recipe dict, or None if none found.
 
-    Searches knowledge/<ecosystem>/  for JSON files matching
-    {package}_{from}_to_{to}.json, then falls back to any file for that package.
+    Searches knowledge/recipes/ and knowledge/node/ for recipe JSON files.
     """
-    # Normalise version strings: strip leading non-digit chars (^, ~, >=, etc.)
     def _strip(v: Optional[str]) -> str:
         if not v:
             return ""
@@ -76,28 +74,24 @@ def _load_knowledge(package: str, from_version: Optional[str], to_version: str) 
     to_maj = _strip(to_version)
     pkg = package.lower()
 
-    candidates: list[Path] = []
-    for ecosystem_dir in _KNOWLEDGE_DIR.iterdir():
-        if not ecosystem_dir.is_dir():
+    search_dirs = [_KNOWLEDGE_DIR / "recipes", _KNOWLEDGE_DIR / "node"]
+    for sdir in search_dirs:
+        if not sdir.exists():
             continue
-        for kf in ecosystem_dir.glob("*.json"):
+        for kf in sdir.glob("*.json"):
             stem = kf.stem.lower()
+            try:
+                data = json.loads(kf.read_text(encoding="utf-8"))
+            except Exception:
+                continue
             # Exact match: react_17_to_18
             if from_maj and stem == f"{pkg}_{from_maj}_to_{to_maj}":
-                return json.loads(kf.read_text(encoding="utf-8"))
-            # Version-less match: file name starts with package name
-            if stem.startswith(pkg):
-                candidates.append(kf)
-
-    # Use first candidate (alphabetically stable)
-    if candidates:
-        candidates.sort()
-        data = json.loads(candidates[0].read_text(encoding="utf-8"))
-        # Verify it targets the right to_version if possible
-        if to_maj and str(data.get("to_version", "")).startswith(to_maj):
-            return data
-        # Still return it — partial knowledge is better than none
-        return data
+                return data
+            # Version-less match
+            if stem.startswith(pkg) and "breaking_changes" in data:
+                if to_maj and str(data.get("to_version", "")).startswith(to_maj):
+                    return data
+                return data
 
     return None
 
@@ -275,11 +269,18 @@ def _parse_plan(
         except Exception as exc:
             logger.warning("Skipping malformed planned action: %s — %s", item, exc)
 
+    fw_name = profile.framework.capitalize() if profile.framework else target.package.capitalize()
+    migration_path_str = f"{fw_name} {target.from_version or '?'} -> {target.to_version}"
+    recipe_id = knowledge.get("id") or knowledge.get("recipe") if knowledge else None
+
     plan = MigrationPlan(
         rehearsal_id=rehearsal_id,
         package=target.package,
         from_version=target.from_version,
         to_version=target.to_version,
+        framework=fw_name,
+        migration_path=migration_path_str,
+        recipe_id=recipe_id,
         findings=findings,
         planned_actions=planned_actions,
         knowledge_sources=_knowledge_sources(knowledge),

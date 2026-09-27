@@ -29,12 +29,12 @@ from app.services.baseline import (
 
 class TestBaselineTimeoutsAndConfig:
     def test_default_timeouts(self):
-        """Sensible defaults: INSTALL=180s, BUILD=120s, TEST=120s, LINT=120s."""
+        """Configurable defaults: INSTALL=300s, BUILD=300s, TEST=180s, LINT=180s."""
         with patch.dict(os.environ, {}, clear=True):
-            assert get_baseline_timeout("install") == 180
-            assert get_baseline_timeout("build") == 120
-            assert get_baseline_timeout("test") == 120
-            assert get_baseline_timeout("lint") == 120
+            assert get_baseline_timeout("install") == 300
+            assert get_baseline_timeout("build") == 300
+            assert get_baseline_timeout("test") == 180
+            assert get_baseline_timeout("lint") == 180
 
     def test_environment_variable_override(self):
         """Environment variables BASELINE_<STEP>_TIMEOUT must override defaults."""

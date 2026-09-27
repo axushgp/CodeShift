@@ -73,9 +73,10 @@ export const apiClient = {
 
 export interface StartRehearsalUrlPayload {
   repository_url: string
-  target_package: string
-  target_version: string
+  target_package?: string
+  target_version?: string
   from_version?: string
+  discovery_id?: string
 }
 
 export function startRehearsalFromUrl(payload: StartRehearsalUrlPayload): Promise<RehearsalResponse> {
@@ -84,16 +85,44 @@ export function startRehearsalFromUrl(payload: StartRehearsalUrlPayload): Promis
 
 export function startRehearsalFromZip(
   file: File,
-  targetPackage: string,
-  targetVersion: string,
+  targetPackage?: string,
+  targetVersion?: string,
   fromVersion?: string,
+  discoveryId?: string,
 ): Promise<RehearsalResponse> {
   const form = new FormData()
   form.append('file', file)
-  form.append('target_package', targetPackage)
-  form.append('target_version', targetVersion)
+  if (targetPackage) form.append('target_package', targetPackage)
+  if (targetVersion) form.append('target_version', targetVersion)
   if (fromVersion) form.append('from_version', fromVersion)
+  if (discoveryId) form.append('discovery_id', discoveryId)
   return apiClient.postForm<RehearsalResponse>('/api/rehearsals/upload', form)
+}
+
+// ── Target Discovery & Migration Knowledge endpoints ─────────────────────────
+
+export function discoverTargetsFromUrl(repositoryUrl: string): Promise<import('../types').DiscoveredTargets> {
+  return apiClient.post<import('../types').DiscoveredTargets>('/api/migrations/discover', {
+    repository_url: repositoryUrl,
+  })
+}
+
+export function discoverTargetsFromZip(file: File): Promise<import('../types').DiscoveredTargets> {
+  const form = new FormData()
+  form.append('zip_file', file)
+  return apiClient.postForm<import('../types').DiscoveredTargets>('/api/migrations/discover-zip', form)
+}
+
+export function getMigrationOptions(params: {
+  rehearsalId?: string
+  framework?: string
+  version?: string
+}): Promise<import('../types').DiscoveredTargets> {
+  const query = new URLSearchParams()
+  if (params.rehearsalId) query.set('rehearsal_id', params.rehearsalId)
+  if (params.framework) query.set('framework', params.framework)
+  if (params.version) query.set('version', params.version)
+  return apiClient.get<import('../types').DiscoveredTargets>(`/api/migrations/options?${query.toString()}`)
 }
 
 export function getRehearsalStatus(rehearsalId: string): Promise<RehearsalResponse> {

@@ -65,12 +65,12 @@ def get_baseline_timeout(step: str) -> int:
         pass
 
     defaults = {
-        "install": 180,
-        "build": 120,
-        "test": 120,
-        "lint": 120,
+        "install": 300,
+        "build": 300,
+        "test": 180,
+        "lint": 180,
     }
-    return defaults.get(step.lower(), 120)
+    return defaults.get(step.lower(), 180)
 
 
 # Module-level defaults for backward compatibility (e.g. verification.py)
@@ -442,10 +442,14 @@ def run_baseline(
     if pm == PackageManager.NPM:
         install_cmd = [*prefix, "install", "--prefer-offline", "--no-audit", "--no-fund"]
 
+    install_desc = f"Installing dependencies with {pm_display}..."
     result.active_step = "install"
+    result.active_operation = install_desc
+    result.active_timeout = install_timeout
+    result.active_started_at = time.time()
     store.save_baseline(result)
     if on_step_start:
-        on_step_start("install", f"Installing dependencies with {pm_display}...")
+        on_step_start("install", install_desc)
 
     result.install = _run(install_cmd, workspace, install_timeout, "install")
     store.save_baseline(result)
@@ -456,8 +460,11 @@ def run_baseline(
     if result.install.status == StepStatus.TIMEOUT:
         result.status = BaselineStatus.TIMEOUT
         result.passed = False
-        result.notes = f"Install step timed out after {install_timeout}s. Subsequent steps were not run."
+        result.notes = f"Install step timed out after {install_timeout}s (limit: {install_timeout}s). Command: {' '.join(install_cmd)}. Subsequent steps were not run."
         result.active_step = None
+        result.active_operation = None
+        result.active_timeout = None
+        result.active_started_at = None
         store.save_baseline(result)
         return result
 
@@ -466,6 +473,9 @@ def run_baseline(
         result.passed = False
         result.notes = f"Environment error during install: {result.install.stderr}"
         result.active_step = None
+        result.active_operation = None
+        result.active_timeout = None
+        result.active_started_at = None
         store.save_baseline(result)
         return result
 
@@ -503,10 +513,14 @@ def run_baseline(
             setattr(result, step_name, step_result)
             store.save_baseline(result)
         else:
+            op_desc = f"{step_desc} ({script_name})..."
             result.active_step = step_name
+            result.active_operation = op_desc
+            result.active_timeout = timeout
+            result.active_started_at = time.time()
             store.save_baseline(result)
             if on_step_start:
-                on_step_start(step_name, f"{step_desc} ({script_name})...")
+                on_step_start(step_name, op_desc)
 
             step_result = _run(
                 [*prefix, "run", script_name],
@@ -520,7 +534,21 @@ def run_baseline(
             setattr(result, step_name, step_result)
             store.save_baseline(result)
 
+            if step_result and step_result.status == StepStatus.TIMEOUT:
+                result.status = BaselineStatus.TIMEOUT
+                result.passed = False
+                result.notes = f"{step_name.capitalize()} step timed out after {timeout}s (limit: {timeout}s). Command: {' '.join(prefix)} run {script_name}. Subsequent steps were not run."
+                result.active_step = None
+                result.active_operation = None
+                result.active_timeout = None
+                result.active_started_at = None
+                store.save_baseline(result)
+                return result
+
     result.active_step = None
+    result.active_operation = None
+    result.active_timeout = None
+    result.active_started_at = None
     result.compute_passed()
     if not install_ok:
         result.notes = "Install step failed. Subsequent steps were not run."

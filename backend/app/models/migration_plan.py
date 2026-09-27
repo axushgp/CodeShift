@@ -66,6 +66,9 @@ class MigrationPlan(BaseModel):
     package: str = Field(description="Package being upgraded, e.g. 'react'")
     from_version: Optional[str] = None
     to_version: str = Field(description="Target version")
+    framework: Optional[str] = Field(default=None, description="Primary framework name, e.g. 'React'")
+    migration_path: Optional[str] = Field(default=None, description="Human-readable migration path, e.g. 'React 17 -> React 18'")
+    recipe_id: Optional[str] = Field(default=None, description="Certified recipe identifier if available")
 
     # Analysis results
     findings: list[MigrationFinding] = Field(default_factory=list)

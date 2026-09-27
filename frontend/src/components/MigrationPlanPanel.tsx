@@ -92,6 +92,34 @@ export function MigrationPlanPanel({ plan, twinResult }: MigrationPlanPanelProps
           </div>
         </div>
 
+        {/* Target Audit Grid */}
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 rounded border border-zinc-800 bg-zinc-900/50 p-3" data-testid="plan-target-audit">
+          <div>
+            <div className="text-xs font-mono text-zinc-500 uppercase">Framework</div>
+            <div className="mt-0.5 text-sm font-semibold text-zinc-200 capitalize">
+              {plan.framework || plan.package}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs font-mono text-zinc-500 uppercase">Current</div>
+            <div className="mt-0.5 text-sm font-mono text-zinc-300">
+              {plan.from_version || 'Unknown'}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs font-mono text-zinc-500 uppercase">Target</div>
+            <div className="mt-0.5 text-sm font-mono text-emerald-400 font-semibold">
+              {plan.to_version}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs font-mono text-zinc-500 uppercase">Migration Path</div>
+            <div className="mt-0.5 text-xs font-mono text-zinc-300 truncate" title={plan.migration_path || `${plan.framework || plan.package} ${plan.from_version || ''} → ${plan.to_version}`}>
+              {plan.migration_path || `${plan.framework || plan.package} ${plan.from_version || ''} → ${plan.to_version}`}
+            </div>
+          </div>
+        </div>
+
         {plan.notes && (
           <div className="mt-3 rounded border border-zinc-800 bg-zinc-900/60 p-2.5 text-sm text-zinc-300 font-mono">
             {plan.notes}

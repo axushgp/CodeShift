@@ -56,10 +56,11 @@ class StartRehearsalRequest(BaseModel):
     """JSON body for starting a rehearsal from a public Git URL."""
 
     repository_url: str
-    target_package: str
-    target_version: str
+    target_package: Optional[str] = "react"
+    target_version: Optional[str] = "18.0.0"
     from_version: Optional[str] = None
     is_demo: bool = False
+    discovery_id: Optional[str] = None
 
 
 class RehearsalResponse(BaseModel):
@@ -491,6 +492,7 @@ def _run_intake_pipeline(
     rehearsal_id: str,
     source_url: Optional[str],
     zip_bytes: Optional[bytes],
+    discovery_id: Optional[str] = None,
 ) -> None:
     """
     Full synchronous pipeline: intake → scan → baseline.
@@ -503,10 +505,17 @@ def _run_intake_pipeline(
         # ── Intake ──────────────────────────────────────────────────────────
         store.update_rehearsal_stage(rehearsal_id, RehearsalStage.INTAKE)
 
-        if source_url:
-            workspace = intake_svc.clone_repository(source_url)
-        else:
-            workspace = intake_svc.extract_zip(zip_bytes)  # type: ignore[arg-type]
+        if discovery_id:
+            from app.api.migrations import get_cached_discovery_workspace
+            cached = get_cached_discovery_workspace(discovery_id)
+            if cached and Path(cached).exists():
+                workspace = Path(cached)
+
+        if workspace is None:
+            if source_url:
+                workspace = intake_svc.clone_repository(source_url)
+            else:
+                workspace = intake_svc.extract_zip(zip_bytes)  # type: ignore[arg-type]
 
         # Persist local path on the rehearsal record
         rehearsal = store.load_rehearsal(rehearsal_id)
@@ -520,6 +529,23 @@ def _run_intake_pipeline(
         if source_url:
             profile.source_url = source_url
         store.save_repo_profile(profile)
+
+        # Auto-enrich target_upgrade with detected framework and version if missing or default
+        if rehearsal:
+            from app.services import target_discovery as discovery_svc
+            dt = discovery_svc.discover_migration_targets(profile)
+            updated_target = False
+            if not rehearsal.target_upgrade.package or rehearsal.target_upgrade.package == "unknown":
+                rehearsal.target_upgrade.package = dt["detected_framework"]["package"]
+                updated_target = True
+            if not rehearsal.target_upgrade.from_version and dt["detected_version"]:
+                rehearsal.target_upgrade.from_version = dt["detected_version"]
+                updated_target = True
+            if not rehearsal.target_upgrade.to_version or rehearsal.target_upgrade.to_version == "unknown":
+                rehearsal.target_upgrade.to_version = dt["upgrade_target"]["recommended_target"] or "18.0.0"
+                updated_target = True
+            if updated_target:
+                store.save_rehearsal(rehearsal)
 
         # ── Baseline ─────────────────────────────────────────────────────────
         def handle_baseline_step(step_name: str, description: str) -> None:
@@ -663,9 +689,10 @@ async def start_rehearsal_url(
         rehearsal.id,
         body.repository_url,
         None,
+        body.discovery_id,
     )
 
-    logger.info("Started rehearsal %s for URL %s", rehearsal.id, body.repository_url)
+    logger.info("Started rehearsal %s for URL %s (discovery=%s)", rehearsal.id, body.repository_url, body.discovery_id)
     return RehearsalResponse(rehearsal=rehearsal)
 
 
@@ -673,9 +700,10 @@ async def start_rehearsal_url(
 async def start_rehearsal_zip(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="Repository ZIP archive"),
-    target_package: str = Form(...),
-    target_version: str = Form(...),
+    target_package: Optional[str] = Form(default="react"),
+    target_version: Optional[str] = Form(default="18.0.0"),
     from_version: Optional[str] = Form(default=None),
+    discovery_id: Optional[str] = Form(default=None),
 ) -> RehearsalResponse:
     """
     Start a new rehearsal from a ZIP upload.
@@ -694,8 +722,8 @@ async def start_rehearsal_zip(
     rehearsal = Rehearsal(
         repository=RepositorySource(zip_path=file.filename),
         target_upgrade=TargetUpgrade(
-            package=target_package,
-            to_version=target_version,
+            package=target_package or "react",
+            to_version=target_version or "18.0.0",
             from_version=from_version,
         ),
         status=RehearsalStatus.RUNNING,
@@ -708,6 +736,7 @@ async def start_rehearsal_zip(
         rehearsal.id,
         None,
         zip_bytes,
+        discovery_id,
     )
 
     logger.info("Started rehearsal %s for ZIP upload %s", rehearsal.id, file.filename)

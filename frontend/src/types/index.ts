@@ -188,6 +188,9 @@ export interface BaselineResult {
   rehearsal_id: string
   status?: BaselineStatus
   active_step?: string
+  active_operation?: string
+  active_timeout?: number
+  active_started_at?: number
   install?: CommandResult
   build?: CommandResult
   test?: CommandResult
@@ -216,6 +219,9 @@ export interface MigrationPlan {
   package: string
   from_version?: string
   to_version: string
+  framework?: string
+  migration_path?: string
+  recipe_id?: string
   findings: MigrationFinding[]
   planned_actions: PlannedAction[]
   total_findings: number
@@ -223,6 +229,49 @@ export interface MigrationPlan {
   requires_human_review: boolean
   knowledge_sources: string[]
   notes?: string
+}
+
+// ---------------------------------------------------------------------------
+// Target Discovery & Knowledge Registry
+// ---------------------------------------------------------------------------
+
+export interface TargetOption {
+  target_version: string
+  label: string
+  badge?: string
+  is_recommended: boolean
+  has_certified_recipe: boolean
+  recipe?: string | null
+  description: string
+}
+
+export interface UpgradeTargetInfo {
+  current: string
+  recommended_target?: string
+  has_certified_recipe: boolean
+  options: TargetOption[]
+}
+
+export interface DetectedFramework {
+  id: string
+  name: string
+  package: string
+}
+
+export interface ToolingInfo {
+  build_tool: string
+  runtime: string
+  package_manager: string
+}
+
+export interface DiscoveredTargets {
+  discovery_id?: string
+  detected_framework: DetectedFramework
+  detected_version: string
+  raw_version?: string
+  tooling: ToolingInfo
+  upgrade_target: UpgradeTargetInfo
+  knowledge_updated: string
 }
 
 // ---------------------------------------------------------------------------

@@ -124,6 +124,7 @@ function App() {
           repository_url: values.repositoryUrl,
           target_package: values.targetPackage,
           target_version: values.targetVersion,
+          discovery_id: values.discoveryId,
         })
       } else {
         if (!values.zipFile) return
@@ -131,6 +132,8 @@ function App() {
           values.zipFile,
           values.targetPackage,
           values.targetVersion,
+          undefined,
+          values.discoveryId,
         )
       }
 
@@ -311,6 +314,7 @@ function App() {
               status={currentStatus}
               errorMessage={state.errorMessage ?? undefined}
               activeOperation={state.rehearsal?.active_operation}
+              baseline={state.baseline}
             />
           </section>
         )}

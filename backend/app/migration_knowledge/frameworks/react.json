@@ -1,0 +1,39 @@
+{
+  "id": "react",
+  "name": "React",
+  "package": "react",
+  "ecosystem": "node",
+  "knowledge_updated": "2026-09",
+  "known_versions": [
+    "16.x",
+    "17.x",
+    "18.x",
+    "19.x"
+  ],
+  "latest_known_version": "18.x",
+  "recommended_target": "18.0.0",
+  "migration_paths": [
+    {
+      "from": "17.x",
+      "to": "18.x",
+      "target_version": "18.0.0",
+      "label": "React 18.x",
+      "badge": "Recommended",
+      "is_recommended": true,
+      "has_certified_recipe": true,
+      "recipe": "react_17_to_18",
+      "description": "Upgrade to React 18 with createRoot, automatic batching, and concurrent features"
+    },
+    {
+      "from": "17.x",
+      "to": "17.0.2",
+      "target_version": "17.0.2",
+      "label": "React 17.0.2",
+      "badge": "Latest Patch",
+      "is_recommended": false,
+      "has_certified_recipe": false,
+      "recipe": null,
+      "description": "Keep React 17 on the latest stable patch version"
+    }
+  ]
+}

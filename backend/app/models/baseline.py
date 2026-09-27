@@ -90,6 +90,18 @@ class BaselineResult(BaseModel):
         default=None,
         description="Name of the currently running baseline step, or None if idle/completed",
     )
+    active_operation: Optional[str] = Field(
+        default=None,
+        description="Human-readable description of current operation, e.g. 'Installing dependencies with Yarn...'",
+    )
+    active_timeout: Optional[int] = Field(
+        default=None,
+        description="Configured timeout limit in seconds for the currently running step",
+    )
+    active_started_at: Optional[float] = Field(
+        default=None,
+        description="Timestamp (epoch seconds) when current step started execution",
+    )
 
     # Step results
     install: Optional[CommandResult] = None

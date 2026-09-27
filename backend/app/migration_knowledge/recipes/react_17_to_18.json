@@ -1,0 +1,90 @@
+{
+  "id": "react_17_to_18",
+  "name": "React 17 to React 18 Migration Recipe",
+  "from_version": "17",
+  "to_version": "18",
+  "package": "react",
+  "ecosystem": "node",
+  "breaking_changes": [
+    {
+      "id": "react18-new-root-api",
+      "title": "ReactDOM.render is deprecated; use createRoot",
+      "description": "ReactDOM.render and ReactDOM.hydrate are removed in React 18. Use createRoot and hydrateRoot from react-dom/client instead.",
+      "affected_apis": ["ReactDOM.render", "ReactDOM.hydrate"],
+      "replacement": "import { createRoot } from 'react-dom/client'; createRoot(container).render(<App />);",
+      "severity": "CRITICAL"
+    },
+    {
+      "id": "react18-automatic-batching",
+      "title": "Automatic batching now applies to all updates",
+      "description": "In React 18, state updates inside setTimeout, promises, and native event handlers are also batched. Code relying on non-batched updates (checking state immediately after setState in async contexts) may behave differently.",
+      "affected_apis": [],
+      "replacement": "Wrap updates you want to opt out of batching with ReactDOM.flushSync().",
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "react18-strict-mode-double-invoke",
+      "title": "StrictMode double-invokes effects in development",
+      "description": "React 18 StrictMode now mounts, unmounts, and remounts components in development to surface effect cleanup issues. Effects must be idempotent.",
+      "affected_apis": ["useEffect"],
+      "replacement": "Ensure useEffect cleanup functions properly reverse side-effects.",
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "react18-suspended-tree-update",
+      "title": "Suspense layout effect timing changed",
+      "description": "In React 18, useLayoutEffect is no longer called on the server. Code conditionally running layout effects on server may need to be guarded.",
+      "affected_apis": ["useLayoutEffect"],
+      "replacement": "Use useEffect for non-layout concerns, or guard with typeof window check.",
+      "severity": "LOW"
+    }
+  ],
+  "deprecated_apis": [
+    {
+      "id": "react18-deprecated-render",
+      "api": "ReactDOM.render",
+      "replacement": "createRoot from react-dom/client",
+      "severity": "CRITICAL"
+    },
+    {
+      "id": "react18-deprecated-hydrate",
+      "api": "ReactDOM.hydrate",
+      "replacement": "hydrateRoot from react-dom/client",
+      "severity": "CRITICAL"
+    },
+    {
+      "id": "react18-deprecated-unmount",
+      "api": "ReactDOM.unmountComponentAtNode",
+      "replacement": "root.unmount() on the root returned by createRoot",
+      "severity": "HIGH"
+    }
+  ],
+  "migration_actions": [
+    {
+      "id": "action-update-root-render",
+      "description": "Replace ReactDOM.render(<App />, container) with createRoot(container).render(<App />)",
+      "action_type": "MANUAL",
+      "codemod_hint": "react-codemod/replace-render-with-createroot"
+    },
+    {
+      "id": "action-update-peer-deps",
+      "description": "Update react-dom and @types/react to ^18.0.0 in package.json",
+      "action_type": "VERSION_BUMP"
+    },
+    {
+      "id": "action-audit-flush-sync",
+      "description": "Audit async code that reads state immediately after setState calls for unexpected batching",
+      "action_type": "MANUAL"
+    }
+  ],
+  "manual_considerations": [
+    "Third-party libraries must also be React 18 compatible (react-query, react-router, testing-library versions).",
+    "React 18 requires react-dom@18 as a peer dependency — ensure both are updated together.",
+    "Server-side rendering (renderToString) still works but concurrent features require renderToPipeableStream.",
+    "Test environment: @testing-library/react v13+ is required for React 18 support."
+  ],
+  "references": [
+    "https://react.dev/blog/2022/03/08/react-18-upgrade-guide",
+    "https://react.dev/reference/react-dom/client/createRoot"
+  ]
+}
