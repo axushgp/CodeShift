@@ -20,8 +20,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 
 WORKDIR /app
 
-COPY pyproject.toml /app/
+COPY pyproject.toml requirements.txt /app/
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir -e .
 
 COPY . /app/
