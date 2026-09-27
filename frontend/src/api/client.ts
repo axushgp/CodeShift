@@ -7,7 +7,7 @@
 
 import type { RehearsalResponse } from '../types'
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? ''
+const BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
 
 export class ApiClientError extends Error {
   constructor(
