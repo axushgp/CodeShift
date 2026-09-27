@@ -22,7 +22,21 @@ class HealthResponse(BaseModel):
     timestamp: str
 
 
+@router.get("/", tags=["Health"])
+def root_info() -> dict:
+    """Root endpoint confirming the API is operational."""
+    settings = get_settings()
+    return {
+        "app": settings.app_name,
+        "status": "ok",
+        "version": settings.app_version,
+        "docs": "/docs",
+        "health": "/health",
+    }
+
+
 @router.get("/health", response_model=HealthResponse, tags=["Health"])
+@router.get("/api/health", response_model=HealthResponse, tags=["Health"])
 def health_check() -> HealthResponse:
     """
     Returns a structured health response.
@@ -38,3 +52,4 @@ def health_check() -> HealthResponse:
         environment=settings.environment,
         timestamp=datetime.now(timezone.utc).isoformat(),
     )
+
